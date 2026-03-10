@@ -163,10 +163,10 @@ def otherSettings() {
             input name: "reconcileStepSeconds",
                 type: "number",
                 title: boldTitle("Reconcile per-device delay (seconds)"),
-                description: "Lower is faster. Use 0 for near-immediate queue processing.",
+                description: "Lower is faster. Minimum 1 second enforced to protect local hub API.",
                 defaultValue: 2,
                 required: true,
-                range: "0..30",
+                range: "1..30",
                 submitOnChange: true
 
             input "dateTimeFormat", "enum",
@@ -647,12 +647,11 @@ def reconcileNextDevice() {
     }
 
     Integer stepSec = 2
-    try { stepSec = Math.max(0, (settings?.reconcileStepSeconds ?: 2) as Integer) } catch (ignored) { stepSec = 2 }
+    try { stepSec = Math.max(1, (settings?.reconcileStepSeconds ?: 2) as Integer) } catch (ignored) { stepSec = 2 }
 
-    // Stagger the next device to avoid bursts
+    // Stagger the next device to avoid bursts (minimum 1s floor to protect local hub API)
     if (state.reconcileQueue && !state.reconcileQueue.isEmpty()) {
-        if (stepSec <= 0) runInMillis(200, "reconcileNextDevice")
-        else runIn(stepSec, "reconcileNextDevice")
+        runIn(stepSec, "reconcileNextDevice")
     } else {
         state.reconcileInProgress = false
         logDebug { "Reconcile: finished all devices." }
@@ -1156,10 +1155,9 @@ private String nextReconcileRunText(String cad) {
             cal.set(Calendar.MINUTE, 0)
             cal.set(Calendar.SECOND, 0)
             cal.set(Calendar.MILLISECOND, 0)
-            cal.add(Calendar.HOUR_OF_DAY, 1)
-            while ((cal.get(Calendar.HOUR_OF_DAY) % step) != 0) {
-                cal.add(Calendar.HOUR_OF_DAY, 1)
-            }
+            int hoursToAdd = (step - (cal.get(Calendar.HOUR_OF_DAY) % step)) % step
+            if (hoursToAdd == 0) hoursToAdd = step   // already on boundary — next occurrence is step hours away
+            cal.add(Calendar.HOUR_OF_DAY, hoursToAdd)
             break
 
         case "Daily":
