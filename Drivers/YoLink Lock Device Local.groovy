@@ -150,9 +150,23 @@ private Map getStateWithFallback(boolean fetchFirst = false) {
     if (!ensureSetupContext()) return null
 
     List<String> methods = fetchFirst ? ["fetchState", "getState"] : ["getState", "fetchState"]
-    Map methodErr = null
 
+    // Fast path: known type — 1-2 API calls instead of scanning all candidates
+    if (state.type) {
+        String knownType = state.type.toString()
+        for (String op : methods) {
+            def object = sendLockRequest("${knownType}.${op}", null, knownType)
+            if (object?.code == "000000") return object
+            if (object?.code != "010203") return object   // real error, no benefit trying other types
+        }
+        // All methods returned 010203 — type must have changed; fall through to rediscovery
+        logDebug("getStateWithFallback: known type '${knownType}' unsupported, rediscovering...")
+    }
+
+    // Slow path: full candidate scan (first install or after API version change)
+    Map methodErr = null
     for (String lockType : lockTypeCandidates()) {
+        if (lockType == state.type?.toString()) continue   // already tried in fast path
         for (String op : methods) {
             def object = sendLockRequest("${lockType}.${op}", null, lockType)
             if (object?.code == "000000") {
@@ -244,11 +258,29 @@ def unlock() { setLockState("unlocked") }
 private void setLockState(String targetState) {
     if (!ensureSetupContext()) return
 
+    // Fast path: known type — 1 API call instead of scanning all candidates
+    if (state.type) {
+        String knownType = state.type.toString()
+        Map params = (knownType == "LockV2") ? [state: [lock: targetState]] : [state: targetState]
+        def object = sendLockRequest("${knownType}.setState", params, knownType)
+        if (object?.code == "000000") {
+            parseDevice([data: object?.data ?: [:]])
+            return
+        }
+        if (object?.code != "010203") {
+            if (object) pollError(object)
+            return   // real error, no benefit trying other types
+        }
+        // 010203 — type must have changed; fall through to rediscovery
+        logDebug("setLockState: known type '${knownType}' unsupported, rediscovering...")
+    }
+
+    // Slow path: candidate scan (first install or after API version change)
     Map methodErr = null
     for (String lockType : lockTypeCandidates()) {
-        String method = "${lockType}.setState"
+        if (lockType == state.type?.toString()) continue   // already tried in fast path
         Map params = (lockType == "LockV2") ? [state: [lock: targetState]] : [state: targetState]
-        def object = sendLockRequest(method, params, lockType)
+        def object = sendLockRequest("${lockType}.setState", params, lockType)
         if (object?.code == "000000") {
             if (state.type != lockType) state.type = lockType
             parseDevice([data: object?.data ?: [:]])
