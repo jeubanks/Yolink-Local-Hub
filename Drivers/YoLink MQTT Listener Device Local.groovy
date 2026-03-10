@@ -317,29 +317,8 @@ private String nowFmt() { new Date().format(activeFmt(), location?.timeZone) }
 private String timestamp() { nowFmt() }
 
 private String fmtTs(def ts) {
-    String f = activeFmt()
-    try {
-        Date d = null
-        if (ts instanceof Number) {
-            d = new Date((ts as long))
-        } else if (ts instanceof String) {
-            String s = ts.trim()
-            if (s.isLong()) {
-                d = new Date(s.toLong())
-            } else {
-                String[] patterns = [
-                    "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-                    "yyyy-MM-dd'T'HH:mm:ss'Z'",
-                    "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
-                    "yyyy-MM-dd'T'HH:mm:ssXXX"
-                ]
-                for (p in patterns) { try { d = Date.parse(p, s); break } catch (ignored) {} }
-            }
-        }
-        return d ? d.format(f, location?.timeZone) : (ts?.toString())
-    } catch (e) {
-        return ts?.toString()
-    }
+    try { return parent?.fmtTs(ts) } catch (ignored) {}
+    return ts?.toString()
 }
 
 def mqttWatchdog() {

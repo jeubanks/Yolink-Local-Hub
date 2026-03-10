@@ -416,6 +416,34 @@ String getDateTimeFormat() {
     return settings?.dateTimeFormat ?: "MM/dd/yyyy hh:mm:ss a"
 }
 
+// === Shared timestamp formatter — delegates from all child drivers ===
+String fmtTs(def ts) {
+    String f = getDateTimeFormat()
+    try {
+        TimeZone tz = location?.timeZone ?: TimeZone.getDefault()
+        Date d = null
+        if (ts instanceof Number) {
+            d = new Date((ts as long))
+        } else if (ts instanceof String) {
+            String s = ts.trim()
+            if (s.isLong()) {
+                d = new Date(s.toLong())
+            } else {
+                String[] patterns = [
+                    "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                    "yyyy-MM-dd'T'HH:mm:ss'Z'",
+                    "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+                    "yyyy-MM-dd'T'HH:mm:ssXXX"
+                ]
+                for (p in patterns) { try { d = Date.parse(p, s); break } catch (ignored) {} }
+            }
+        }
+        return d ? d.format(f, tz) : (ts?.toString())
+    } catch (e) {
+        return ts?.toString()
+    }
+}
+
 String getDeviceTypeFor(String devId) {
     return state?.deviceType?."${devId}"?.toString()
 }
