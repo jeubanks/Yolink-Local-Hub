@@ -5,6 +5,13 @@
  *  1.0.0 - Initial driver for power-monitoring plugs/outlets (YS6614, YS6602)
  */
 import groovy.json.JsonSlurper
+import groovy.transform.Field
+
+@Field static final List<String> POWER_KEYS    = ["power", "watt", "watts", "loadPower"]
+@Field static final List<String> ENERGY_KEYS   = ["energy", "kwh", "energyKWh", "totalKWh", "energyTotal"]
+@Field static final List<String> VOLTAGE_KEYS  = ["voltage", "volt", "volts", "lineVoltage"]
+@Field static final List<String> CURRENT_KEYS  = ["current", "amp", "amps", "lineCurrent"]
+@Field static final List<String> FREQ_KEYS     = ["frequency", "freq", "hz", "lineFrequency"]
 
 def clientVersion() { "1.0.0" }
 def copyright()     { "© 2026 John Eubanks" }
@@ -293,11 +300,11 @@ private void parseDevice(object) {
     if (tz   != null) rememberState("tz", tz)
     if (fw) rememberState("firmware", fw?.toUpperCase())
 
-    BigDecimal powerW  = extractDecimal(st, ["power", "watt", "watts", "loadPower"])
-    BigDecimal energyK = extractDecimal(st, ["energy", "kwh", "energyKWh", "totalKWh", "energyTotal"])
-    BigDecimal voltage = extractDecimal(st, ["voltage", "volt", "volts", "lineVoltage"])
-    BigDecimal current = extractDecimal(st, ["current", "amp", "amps", "lineCurrent"])
-    BigDecimal frequency = extractDecimal(st, ["frequency", "freq", "hz", "lineFrequency"])
+    BigDecimal powerW    = extractDecimal(st, POWER_KEYS)
+    BigDecimal energyK   = extractDecimal(st, ENERGY_KEYS)
+    BigDecimal voltage   = extractDecimal(st, VOLTAGE_KEYS)
+    BigDecimal current   = extractDecimal(st, CURRENT_KEYS)
+    BigDecimal frequency = extractDecimal(st, FREQ_KEYS)
 
     if (powerW != null) {
         sendEvent(name: "power", value: powerW.setScale(2, BigDecimal.ROUND_HALF_UP), unit: "W")
