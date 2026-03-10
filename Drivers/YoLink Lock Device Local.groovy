@@ -347,7 +347,7 @@ private void parseDevice(object) {
     String lockState = normalizeLock(rawLock)
 
     Integer battery4 = asInt([data?.battery, st?.battery].find { it != null })
-    Integer batteryPct = (battery4 != null) ? (parent?.batterylevel(battery4 as String) as Integer) : null
+    Integer batteryPct = (battery4 != null) ? parent?.batterylevel(battery4) : null
 
     String fw = [data?.version, st?.version].find { it != null }?.toString()
     String hw = [data?.hwVersion, st?.hwVersion].find { it != null }?.toString()

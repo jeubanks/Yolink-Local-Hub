@@ -159,7 +159,7 @@ private void parseDevice(object) {
     String swState     = (contact == "closed") ? "on" : "off"
 
     Integer batt4      = (st?.battery as Integer) ?: 0
-    Integer batteryPct = parent?.batterylevel(batt4 as String)
+    Integer batteryPct = parent?.batterylevel(batt4)
     String  fw         = st?.version?.toUpperCase()
     String  bType      = st?.batteryType
 
@@ -219,7 +219,7 @@ def processStateData(String payload) {
 
         Integer batt4 = (data?.battery != null) ? (data.battery as Integer)
                         : (data?.state instanceof Map ? (data.state.battery as Integer) : null)
-        Integer batteryPct = (batt4 != null) ? parent?.batterylevel(batt4 as String) : null
+        Integer batteryPct = (batt4 != null) ? parent?.batterylevel(batt4) : null
 
         String fw    = ((data?.version) ?: (data?.state instanceof Map ? data.state.version : null))?.toUpperCase()
         String bType = (data instanceof Map ? data.batteryType : null) ?:

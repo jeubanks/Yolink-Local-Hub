@@ -164,7 +164,7 @@ private void parseDevice(object) {
 
     // Battery & firmware
     Integer batt4     = (st?.battery as Integer) ?: 0
-    Integer battery   = parent?.batterylevel(batt4 as String)
+    Integer battery   = parent?.batterylevel(batt4)
     String  fw        = st?.version?.toUpperCase()
     String  bType     = st?.batteryType
 
@@ -235,7 +235,7 @@ def processStateData(String payload) {
 
         Integer batt4   = (data?.battery != null) ? (data.battery as Integer)
                           : (stateMap?.battery != null ? (stateMap.battery as Integer) : null)
-        Integer battery = (batt4 != null) ? parent?.batterylevel(batt4 as String) : null
+        Integer battery = (batt4 != null) ? parent?.batterylevel(batt4) : null
 
         String fw       = ((data?.version ?: stateMap?.version) ?: "").toString()?.toUpperCase()
         String bType    = (data?.batteryType != null) ? data.batteryType?.toString()
