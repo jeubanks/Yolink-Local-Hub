@@ -108,8 +108,10 @@ def poll(force = null) {
 def refresh() { poll(true) }
 
 def pollDevice(delay=1) {
-    runIn((delay ?: 1) as int, "getDevicestate")
-    sendEvent(name: "lastPoll", value: new Date().format(activeFmt(), location?.timeZone), isStateChange: true)
+    int d = (delay == null) ? 1 : (delay as int)
+    if (d <= 0) getDevicestate()
+    else runIn(d, "getDevicestate")
+    sendEvent(name: "lastPoll", value: new Date().format(activeFmt(), location?.timeZone))
 }
 
 /* =============================== Commands ============================ */
@@ -220,21 +222,21 @@ private void parseDevice(object) {
     BigDecimal frequency = extractDecimal(st, ["frequency", "freq", "hz", "lineFrequency"])
 
     if (powerW != null) {
-        sendEvent(name: "power", value: powerW.setScale(2, BigDecimal.ROUND_HALF_UP), unit: "W", isStateChange: true)
+        sendEvent(name: "power", value: powerW.setScale(2, BigDecimal.ROUND_HALF_UP), unit: "W")
     }
     if (energyK != null) {
-        sendEvent(name: "energy", value: energyK.setScale(4, BigDecimal.ROUND_HALF_UP), unit: "kWh", isStateChange: true)
+        sendEvent(name: "energy", value: energyK.setScale(4, BigDecimal.ROUND_HALF_UP), unit: "kWh")
     }
     if (voltageV != null) {
-        sendEvent(name: "voltage", value: voltageV.setScale(2, BigDecimal.ROUND_HALF_UP), unit: "V", isStateChange: true)
+        sendEvent(name: "voltage", value: voltageV.setScale(2, BigDecimal.ROUND_HALF_UP), unit: "V")
     }
     if (currentA != null) {
         BigDecimal amps = currentA.setScale(3, BigDecimal.ROUND_HALF_UP)
-        sendEvent(name: "current", value: amps, unit: "A", isStateChange: true)
-        sendEvent(name: "amperage", value: amps, unit: "A", isStateChange: true)
+        sendEvent(name: "current", value: amps, unit: "A")
+        sendEvent(name: "amperage", value: amps, unit: "A")
     }
     if (frequency != null) {
-        sendEvent(name: "frequency", value: frequency.setScale(2, BigDecimal.ROUND_HALF_UP), unit: "Hz", isStateChange: true)
+        sendEvent(name: "frequency", value: frequency.setScale(2, BigDecimal.ROUND_HALF_UP), unit: "Hz")
     }
 
     def reportAt  = data?.reportAt
@@ -248,7 +250,7 @@ private void parseDevice(object) {
     Integer gateways  = asInt(lora?.gateways)
 
     if (devNetType) rememberState("loraDevNetType", devNetType)
-    if (signal != null) sendEvent(name: "signal", value: "${signal} dBm", isStateChange: true)
+    if (signal != null) sendEvent(name: "signal", value: "${signal} dBm")
     if (gateways != null) rememberState("gateways", gateways)
     if (gatewayId != null) rememberState("gatewayId", gatewayId)
 
@@ -283,13 +285,13 @@ def reset() {
     poll(true)
 }
 
-def lastResponse(value) { sendEvent(name: "lastResponse", value: "$value", isStateChange: true) }
+def lastResponse(value) { sendEvent(name: "lastResponse", value: "$value") }
 
 def rememberState(name, value, unit=null) {
     if (state."$name" != value) {
         state."$name" = value
-        if (unit) sendEvent(name: "$name", value: "$value", unit: "$unit", isStateChange: true)
-        else      sendEvent(name: "$name", value: "$value", isStateChange: true)
+        if (unit) sendEvent(name: "$name", value: "$value", unit: "$unit")
+        else      sendEvent(name: "$name", value: "$value")
     }
 }
 

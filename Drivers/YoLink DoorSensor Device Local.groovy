@@ -111,8 +111,10 @@ def poll(force = null) {
 def refresh() { poll(true) }
 
 def pollDevice(delay=1) {
-    runIn((delay ?: 1) as int, "getDevicestate")
-    sendEvent(name: "lastPoll", value: new Date().format(activeFmt(), location?.timeZone), isStateChange: true)
+    int d = (delay == null) ? 1 : (delay as int)
+    if (d <= 0) getDevicestate()
+    else runIn(d, "getDevicestate")
+    sendEvent(name: "lastPoll", value: new Date().format(activeFmt(), location?.timeZone))
 }
 
 /* ========================= Local API Interaction ===================== */
@@ -181,12 +183,12 @@ private void parseDevice(object) {
 
     if (devTempC != null) {
         def t = convertCToPreferred(devTempC)
-        sendEvent(name: "temperature", value: t, unit: activeScale(), isStateChange: true)
+        sendEvent(name: "temperature", value: t, unit: activeScale())
     }
 
     if (reportAt) rememberState("reportAt", fmtTs(reportAt))
     if (devNetType) rememberState("loraDevNetType", devNetType)
-    if (signal != null) sendEvent(name: "signal", value: "${signal} dBm", isStateChange: true)
+    if (signal != null) sendEvent(name: "signal", value: "${signal} dBm")
     if (gateways != null) rememberState("gateways", gateways as int)
     if (gatewayId != null) rememberState("gatewayId", gatewayId)
 
@@ -247,14 +249,14 @@ def processStateData(String payload) {
 
         if (devTempC != null) {
             def t = convertCToPreferred(devTempC)
-            sendEvent(name: "temperature", value: t, unit: activeScale(), isStateChange: true)
+            sendEvent(name: "temperature", value: t, unit: activeScale())
         }
 
         if (reportAt)  rememberState("reportAt", fmtTs(reportAt))
         if (changedAt) rememberState("stateChangedAt", fmtTs(changedAt))
 
         if (devNetType) rememberState("loraDevNetType", devNetType)
-        if (signal != null) sendEvent(name: "signal", value: "${signal} dBm", isStateChange: true)
+        if (signal != null) sendEvent(name: "signal", value: "${signal} dBm")
         if (gateways != null) rememberState("gateways", gateways as int)
         if (gatewayId != null) rememberState("gatewayId", gatewayId)
 
@@ -273,15 +275,15 @@ def reset() {
     poll(true)
 }
 
-def lastResponse(value) { sendEvent(name: "lastResponse", value: "$value", isStateChange: true) }
+def lastResponse(value) { sendEvent(name: "lastResponse", value: "$value") }
 
 def rememberState(name, value, unit=null) {
     if (state."$name" != value) {
         state."$name" = value
         if (unit) {
-            sendEvent(name: "$name", value: "$value", unit: "$unit", isStateChange: true)
+            sendEvent(name: "$name", value: "$value", unit: "$unit")
         } else {
-            sendEvent(name: "$name", value: "$value", isStateChange: true)
+            sendEvent(name: "$name", value: "$value")
         }
     }
 }
@@ -289,7 +291,7 @@ def rememberState(name, value, unit=null) {
 def rememberBatteryState(def value, boolean forceSend = false) {
     if (state.battery != value || forceSend) {
         state.battery = value
-        sendEvent(name: "battery", value: value?.toString(), unit: "%", isStateChange: true)
+        sendEvent(name: "battery", value: value?.toString(), unit: "%")
         logDebug("rememberBatteryState: battery => ${value}% (forceSend=${forceSend})")
     }
 }

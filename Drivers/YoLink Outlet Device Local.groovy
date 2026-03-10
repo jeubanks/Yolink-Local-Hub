@@ -100,8 +100,10 @@ def poll(force = null) {
 def refresh() { poll(true) }
 
 def pollDevice(delay=1) {
-    runIn((delay ?: 1) as int, "getDevicestate")
-    sendEvent(name: "lastPoll", value: new Date().format(activeFmt(), location?.timeZone), isStateChange: true)
+    int d = (delay == null) ? 1 : (delay as int)
+    if (d <= 0) getDevicestate()
+    else runIn(d, "getDevicestate")
+    sendEvent(name: "lastPoll", value: new Date().format(activeFmt(), location?.timeZone))
 }
 
 /* =============================== Commands ============================ */
@@ -205,7 +207,7 @@ private void parseDevice(object) {
     if (dOff != null) rememberState("delayOff", dOff)
     if (tz   != null) rememberState("tz", tz)
     if (fw) rememberState("firmware", fw?.toUpperCase())
-    if (pwr != null) sendEvent(name: "power", value: pwr, unit: "W", isStateChange: true)
+    if (pwr != null) sendEvent(name: "power", value: pwr, unit: "W")
 
     def reportAt  = data?.reportAt
     def changedAt = st?.stateChangedAt ?: data?.stateChangedAt
@@ -218,7 +220,7 @@ private void parseDevice(object) {
     def gateways      = lora?.gateways
 
     if (devNetType) rememberState("loraDevNetType", devNetType)
-    if (signal != null) sendEvent(name: "signal", value: "${signal} dBm", isStateChange: true)
+    if (signal != null) sendEvent(name: "signal", value: "${signal} dBm")
     if (gateways != null) rememberState("gateways", gateways as int)
     if (gatewayId != null) rememberState("gatewayId", gatewayId)
 
@@ -253,13 +255,13 @@ def reset() {
     poll(true)
 }
 
-def lastResponse(value) { sendEvent(name: "lastResponse", value: "$value", isStateChange: true) }
+def lastResponse(value) { sendEvent(name: "lastResponse", value: "$value") }
 
 def rememberState(name, value, unit=null) {
     if (state."$name" != value) {
         state."$name" = value
-        if (unit) sendEvent(name: "$name", value: "$value", unit: "$unit", isStateChange: true)
-        else      sendEvent(name: "$name", value: "$value", isStateChange: true)
+        if (unit) sendEvent(name: "$name", value: "$value", unit: "$unit")
+        else      sendEvent(name: "$name", value: "$value")
     }
 }
 

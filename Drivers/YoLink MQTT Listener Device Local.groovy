@@ -131,8 +131,10 @@ def poll() {
 }
 
 def pollDevice(delay=1) {
-    poll()
-    sendEvent(name:"lastPoll", value: nowFmt(), isStateChange:true)
+    int d = (delay == null) ? 1 : (delay as int)
+    if (d <= 0) poll()
+    else runIn(d, "poll")
+    sendEvent(name:"lastPoll", value: nowFmt())
 }
 
 def logDebug(msg) {
@@ -228,7 +230,7 @@ def mqttClientStatus(String message) {
         try {
             log.info "[${timestamp()}] Disconnecting from MQTT (isConnected=${interfaces.mqtt.isConnected()})"
             interfaces.mqtt.disconnect()
-            sendEvent(name:"MQTT", value: "disconnected", isStateChange:true)
+            sendEvent(name:"MQTT", value: "disconnected")
             state.MQTT = "disconnected"
         } catch (e) {
             log.error("[${timestamp()}] mqttClientStatus(): Disconnect exception: ${e.getMessage()}")
@@ -249,6 +251,7 @@ def parse(message) {
     try {
         def json = new groovy.json.JsonSlurper().parseText(parsed?.payload)
         def devId = json?.deviceId
+        if (devId) parsed.deviceId = devId
 
         if (devId && json.data instanceof Map) {
             if (!state["lastData_${devId}"]) {
@@ -285,8 +288,8 @@ def parse(message) {
 def rememberState(name, value, unit=null) {
     if (state."$name" != value) {
         state."$name" = value
-        if (unit==null) sendEvent(name:"$name", value: "$value", isStateChange:true)
-        else            sendEvent(name:"$name", value: "$value", unit: "$unit", isStateChange:true)
+        if (unit==null) sendEvent(name:"$name", value: "$value")
+        else            sendEvent(name:"$name", value: "$value", unit: "$unit")
     }
 }
 
@@ -299,7 +302,7 @@ def reset() {
 }
 
 def lastResponse(value) {
-    sendEvent(name:"lastResponse", value: "$value", isStateChange:true)
+    sendEvent(name:"lastResponse", value: "$value")
 }
 
 /* ---- Date/Time + Scale helpers (pulled from parent) ---- */

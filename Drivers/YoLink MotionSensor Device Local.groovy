@@ -107,8 +107,10 @@ def poll(force = null) {
 def refresh() { poll(true) }
 
 def pollDevice(delay=1) {
-    runIn((delay ?: 1) as int, "getDevicestate")
-    sendEvent(name: "lastPoll", value: new Date().format(activeFmt(), location?.timeZone), isStateChange: true)
+    int d = (delay == null) ? 1 : (delay as int)
+    if (d <= 0) getDevicestate()
+    else runIn(d, "getDevicestate")
+    sendEvent(name: "lastPoll", value: new Date().format(activeFmt(), location?.timeZone))
 }
 
 /* ========================= Local API Interaction ===================== */
@@ -165,10 +167,10 @@ private void parseDevice(object) {
     def changedAt = data?.stateChangedAt
 
     // Emit readings
-    if (temp != null) sendEvent(name: "temperature", value: temp, unit: activeScale(), isStateChange: true)
+    if (temp != null) sendEvent(name: "temperature", value: temp, unit: activeScale())
     if (batteryPct != null) rememberBatteryState(batteryPct as int, true)
 
-    if (motionStr) sendEvent(name: "motion", value: motionStr, isStateChange: true)
+    if (motionStr) sendEvent(name: "motion", value: motionStr)
 
     rememberState("state", stateStr)
     if (firmware) rememberState("firmware", firmware)
@@ -177,7 +179,7 @@ private void parseDevice(object) {
 
     // LoRa details
     if (lora?.devNetType) rememberState("loraDevNetType", lora.devNetType)
-    if (lora?.signal != null) sendEvent(name: "signal", value: "${lora.signal} dBm", isStateChange: true)
+    if (lora?.signal != null) sendEvent(name: "signal", value: "${lora.signal} dBm")
     if (lora?.gateways != null) rememberState("gateways", lora.gateways as int)
     if (lora?.gatewayId != null) rememberState("gatewayId", lora.gatewayId)
 
@@ -222,15 +224,15 @@ def processStateData(String payload) {
         def reportAt  = data?.reportAt
         def changedAt = data?.stateChangedAt
 
-        if (temp != null) sendEvent(name: "temperature", value: temp, unit: activeScale(), isStateChange: true)
+        if (temp != null) sendEvent(name: "temperature", value: temp, unit: activeScale())
         if (batteryPct != null) rememberBatteryState(batteryPct as int, false)
         if (fw) rememberState("firmware", fw)
         if (stateStr) rememberState("state", stateStr)
-        if (motionStr) sendEvent(name: "motion", value: motionStr, isStateChange: true)
+        if (motionStr) sendEvent(name: "motion", value: motionStr)
 
         // LoRa
         if (lora?.devNetType) rememberState("loraDevNetType", lora.devNetType)
-        if (lora?.signal != null) sendEvent(name: "signal", value: "${lora.signal} dBm", isStateChange: true)
+        if (lora?.signal != null) sendEvent(name: "signal", value: "${lora.signal} dBm")
         if (lora?.gateways != null) rememberState("gateways", lora.gateways as int)
         if (lora?.gatewayId != null) rememberState("gatewayId", lora.gatewayId)
 
@@ -252,15 +254,15 @@ def reset() {
     poll(true)
 }
 
-def lastResponse(value) { sendEvent(name: "lastResponse", value: "$value", isStateChange: true) }
+def lastResponse(value) { sendEvent(name: "lastResponse", value: "$value") }
 
 def rememberState(name, value, unit=null) {
     if (state."$name" != value) {
         state."$name" = value
         if (unit) {
-            sendEvent(name: "$name", value: "$value", unit: "$unit", isStateChange: true)
+            sendEvent(name: "$name", value: "$value", unit: "$unit")
         } else {
-            sendEvent(name: "$name", value: "$value", isStateChange: true)
+            sendEvent(name: "$name", value: "$value")
         }
     }
 }
@@ -268,7 +270,7 @@ def rememberState(name, value, unit=null) {
 def rememberBatteryState(def value, boolean forceSend = false) {
     if (state.battery != value || forceSend) {
         state.battery = value
-        sendEvent(name: "battery", value: value?.toString(), unit: "%", isStateChange: true)
+        sendEvent(name: "battery", value: value?.toString(), unit: "%")
         logDebug("rememberBatteryState: battery => ${value}% (forceSend=${forceSend})")
     }
 }

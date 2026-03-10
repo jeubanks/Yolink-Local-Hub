@@ -129,8 +129,10 @@ def poll(force = null) {
 def refresh() { poll(true) }
 
 def pollDevice(delay=1) {
-    runIn((delay ?: 1) as int, "getDevicestate")
-    sendEvent(name: "lastPoll", value: new Date().format(activeFmt(), location?.timeZone), isStateChange: true)
+    int d = (delay == null) ? 1 : (delay as int)
+    if (d <= 0) getDevicestate()
+    else runIn(d, "getDevicestate")
+    sendEvent(name: "lastPoll", value: new Date().format(activeFmt(), location?.timeZone))
 }
 
 /* ========================= Local API Interaction ===================== */
@@ -199,9 +201,9 @@ private void parseDevice(object) {
     // Emit readings in preferred units
     if (tempC != null) {
         def temp = convertCToPreferred(tempC)
-        sendEvent(name: "temperature", value: temp, unit: activeScale(), isStateChange: true)
+        sendEvent(name: "temperature", value: temp, unit: activeScale())
     }
-    if (humidity != null) sendEvent(name: "humidity", value: humidity, unit: "%", isStateChange: true)
+    if (humidity != null) sendEvent(name: "humidity", value: humidity, unit: "%")
     if (batteryPct != null) rememberBatteryState(batteryPct as int, true)
 
     rememberState("state", stateStr)
@@ -240,7 +242,7 @@ private void parseDevice(object) {
 
     // LoRa details
     if (devNetType) rememberState("loraDevNetType", devNetType)
-    if (signal != null) sendEvent(name: "signal", value: "${signal} dBm", isStateChange: true)
+    if (signal != null) sendEvent(name: "signal", value: "${signal} dBm")
     if (gateways != null) rememberState("gateways", gateways as int)
     if (gatewayId != null) rememberState("gatewayId", gatewayId)
 
@@ -290,8 +292,8 @@ def processStateData(String payload) {
         def reportAt  = data?.reportAt
         def changedAt = data?.stateChangedAt
 
-        if (tempC != null)  sendEvent(name: "temperature", value: convertCToPreferred(tempC), unit: activeScale(), isStateChange: true)
-        if (humidity != null) sendEvent(name: "humidity", value: humidity, unit: "%", isStateChange: true)
+        if (tempC != null)  sendEvent(name: "temperature", value: convertCToPreferred(tempC), unit: activeScale())
+        if (humidity != null) sendEvent(name: "humidity", value: humidity, unit: "%")
         if (batteryPct != null) rememberBatteryState(batteryPct as int, false)
         if (fw) rememberState("firmware", fw)
 
@@ -325,7 +327,7 @@ def processStateData(String payload) {
         rememberState("alarmSummary", summarizeAlarms(flags))
 
         if (devNet) rememberState("loraDevNetType", devNet)
-        if (signal != null) sendEvent(name: "signal", value: "${signal} dBm", isStateChange: true)
+        if (signal != null) sendEvent(name: "signal", value: "${signal} dBm")
         if (gateways != null) rememberState("gateways", gateways as int)
         if (gatewayId != null) rememberState("gatewayId", gatewayId)
 
@@ -347,15 +349,15 @@ def reset() {
     poll(true)
 }
 
-def lastResponse(value) { sendEvent(name: "lastResponse", value: "$value", isStateChange: true) }
+def lastResponse(value) { sendEvent(name: "lastResponse", value: "$value") }
 
 def rememberState(name, value, unit=null) {
     if (state."$name" != value) {
         state."$name" = value
         if (unit) {
-            sendEvent(name: "$name", value: "$value", unit: "$unit", isStateChange: true)
+            sendEvent(name: "$name", value: "$value", unit: "$unit")
         } else {
-            sendEvent(name: "$name", value: "$value", isStateChange: true)
+            sendEvent(name: "$name", value: "$value")
         }
     }
 }
@@ -363,7 +365,7 @@ def rememberState(name, value, unit=null) {
 def rememberBatteryState(def value, boolean forceSend = false) {
     if (state.battery != value || forceSend) {
         state.battery = value
-        sendEvent(name: "battery", value: value?.toString(), unit: "%", isStateChange: true)
+        sendEvent(name: "battery", value: value?.toString(), unit: "%")
         logDebug("rememberBatteryState: battery => ${value}% (forceSend=${forceSend})")
     }
 }

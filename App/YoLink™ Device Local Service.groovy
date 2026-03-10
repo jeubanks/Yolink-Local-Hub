@@ -160,6 +160,15 @@ def otherSettings() {
                   required: true,
                   submitOnChange: true
 
+            input name: "reconcileStepSeconds",
+                type: "number",
+                title: boldTitle("Reconcile per-device delay (seconds)"),
+                description: "Lower is faster. Use 0 for near-immediate queue processing.",
+                defaultValue: 2,
+                required: true,
+                range: "0..30",
+                submitOnChange: true
+
             input "dateTimeFormat", "enum",
                   title: boldTitle("Date/Time format for events"),
                   required: true,
@@ -606,7 +615,7 @@ def reconcileNextDevice() {
             boolean invoked = false
 
             // Try the most specific call your drivers support
-            try { dev.pollDevice(1); invoked = true } catch (ignored) {}
+            try { dev.pollDevice(0); invoked = true } catch (ignored) {}
 
             if (!invoked) {
                 try { dev.poll(true); invoked = true } catch (ignored) {}
@@ -626,9 +635,13 @@ def reconcileNextDevice() {
         log.warn "Reconcile: child with DNI ${dni} not found."
     }
 
+    Integer stepSec = 2
+    try { stepSec = Math.max(0, (settings?.reconcileStepSeconds ?: 2) as Integer) } catch (ignored) { stepSec = 2 }
+
     // Stagger the next device to avoid bursts
     if (state.reconcileQueue && !state.reconcileQueue.isEmpty()) {
-        runIn(10, "reconcileNextDevice")   // 10s between devices
+        if (stepSec <= 0) runInMillis(200, "reconcileNextDevice")
+        else runIn(stepSec, "reconcileNextDevice")
     } else {
         state.reconcileInProgress = false
         logDebug("Reconcile: finished all devices.")
@@ -641,13 +654,15 @@ def passMQTT(topic) {
     String payloadStr = topic?.payload
     if (!payloadStr) return null
 
-    String devId = null
-    try {
-        def payload = new JsonSlurper().parseText(payloadStr)
-        devId = payload?.deviceId as String
-    } catch (e) {
-        logDebug("passMQTT: malformed JSON payload: ${e?.message}")
-        return null
+    String devId = topic?.deviceId as String
+    if (!devId) {
+        try {
+            def payload = new JsonSlurper().parseText(payloadStr)
+            devId = payload?.deviceId as String
+        } catch (e) {
+            logDebug("passMQTT: malformed JSON payload: ${e?.message}")
+            return null
+        }
     }
     if (!devId) return null
 

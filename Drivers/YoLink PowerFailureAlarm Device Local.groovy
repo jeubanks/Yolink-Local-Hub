@@ -98,8 +98,10 @@ def refresh() { poll(true) }
 
 def pollDevice(delay=1) {
     // driverVersion stays in state (no event)
-    runIn((delay ?: 1) as int, "getDevicestate")
-    sendEvent(name: "lastPoll", value: new Date().format(activeFmt(), location?.timeZone), isStateChange: true)
+    int d = (delay == null) ? 1 : (delay as int)
+    if (d <= 0) getDevicestate()
+    else runIn(d, "getDevicestate")
+    sendEvent(name: "lastPoll", value: new Date().format(activeFmt(), location?.timeZone))
 }
 
 /* ========================= Local API Interaction ===================== */
@@ -159,7 +161,7 @@ private void parseDevice(object) {
     if (alertType)      rememberState("alertType", alertType)
     if (beepOn != null) rememberState("beep",  beepOn.toString())
     if (muteOn != null) rememberState("mute",  muteOn.toString())
-    if (soundLvl != null) sendEvent(name: "sound", value: soundLvl, isStateChange: true)
+    if (soundLvl != null) sendEvent(name: "sound", value: soundLvl)
 
     logDebug("Parsed(getState): state=${rawState}, powerSupply=${supply}, powerSource=${powerSrc}, " +
              "switch=${swState}, battery=${batteryPct}%, sound=${soundLvl}, beep=${beepOn}, mute=${muteOn}, " +
@@ -205,7 +207,7 @@ def processStateData(String payload) {
         if (alertType)      rememberState("alertType", alertType)
         if (beepOn != null) rememberState("beep",  beepOn.toString())
         if (muteOn != null) rememberState("mute",  muteOn.toString())
-        if (sound != null)  sendEvent(name: "sound", value: sound, isStateChange: true)
+        if (sound != null)  sendEvent(name: "sound", value: sound)
         if (changedAt)      rememberState("stateChangedAt", fmtTs(changedAt))
     } catch (e) {
         log.warn "PFA processStateData error: ${e}"
@@ -222,20 +224,20 @@ def reset() {
     poll(true)
 }
 
-def lastResponse(value) { sendEvent(name: "lastResponse", value: "$value", isStateChange: true) }
+def lastResponse(value) { sendEvent(name: "lastResponse", value: "$value") }
 
 def rememberState(name, value, unit=null) {
     if (state."$name" != value) {
         state."$name" = value
-        if (unit) sendEvent(name: "$name", value: "$value", unit: "$unit", isStateChange: true)
-        else      sendEvent(name: "$name", value: "$value", isStateChange: true)
+        if (unit) sendEvent(name: "$name", value: "$value", unit: "$unit")
+        else      sendEvent(name: "$name", value: "$value")
     }
 }
 
 def rememberBatteryState(def value, boolean forceSend = false) {
     if (state.battery != value || forceSend) {
         state.battery = value
-        sendEvent(name: "battery", value: value?.toString(), unit: "%", isStateChange: true)
+        sendEvent(name: "battery", value: value?.toString(), unit: "%")
         logDebug("rememberBatteryState: battery => ${value}% (forceSend=${forceSend})")
     }
 }
