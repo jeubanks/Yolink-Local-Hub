@@ -907,15 +907,9 @@ def pollAPI(body, name=null, type=null){
                             break;
                         
                         case "020104":
-                            if (retry>0) {
-                                pauseExecution(5000)
-                                retry--
-                                logDebug("Device busy. Retry=${retry}")
-                            } else {          
-                                log.error "Device busy and retry failed."
-                                retry = -1
-                                rc = object
-                            }     
+                            log.warn "Device '${name}' busy — will retry on next poll cycle."
+                            retry = -1
+                            rc = object
                             break;    
                     
                         case "000201":
