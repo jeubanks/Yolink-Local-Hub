@@ -298,6 +298,21 @@ def diagnostics() {
                        nextPage: "finish") {
         section("") {
             paragraph "Processed ${devicesCount} selected device(s)."
+
+            def ys6604Selections = (exposed ?: []).findAll { dni ->
+                def model = state?.modelName?."${dni}"?.toString()?.toUpperCase()
+                return model?.startsWith("YS6604")
+            }
+            if (ys6604Selections && !ys6604Selections.isEmpty()) {
+                paragraph boldTitle("YS6604 driver probe results:")
+                ys6604Selections.each { dni ->
+                    def devLabel = state?.deviceName?."${dni}" ?: dni
+                    def model = state?.modelName?."${dni}" ?: "YS6604"
+                    def chosen = state?.outletFamilyChoice?."${dni}" ?: "Outlet (default)"
+                    paragraph "${devLabel} (${model}) → ${chosen}"
+                }
+            }
+
             if (state.errors) {
                 paragraph boldRedTitle("Some errors occurred. See ${errFile}.")
             } else {
@@ -393,6 +408,7 @@ String getDateTimeFormat() {
 private create_yolink_device(Hubitat_dni, devname, devtype, devtoken, devId) {
     // --- driver name resolution ---
     def drivername = devtype
+    def modelName = state?.modelName?."${devId}"?.toString()
         if (devtype == "COSmokeSensor") drivername = "COSmokeSensor"
     if (devtype == "Dimmer") drivername = "Dimmer"
     if (devtype == "DoorSensor") drivername = "DoorSensor"
@@ -417,6 +433,14 @@ private create_yolink_device(Hubitat_dni, devname, devtype, devtoken, devId) {
     if (devtype == "VibrationSensor") drivername = "VibrationSensor"
     if (devtype == "WaterDepthSensor") drivername = "WaterDepthSensor"
     if (devtype == "WaterMeterController") drivername = "WaterMeterController"
+
+    // Relay family can vary by hub/firmware: MultiOutlet / SmartOutdoorPlug / Outlet / Switch.
+    if (["MultiOutlet", "SmartOutdoorPlug", "Outlet", "Switch"].contains(devtype) ||
+        modelName?.toUpperCase()?.startsWith("YS6604")) {
+        drivername = getRelayFamilyDriver(devname, devtype, devtoken, devId, modelName)
+        log.info "${devname} (${modelName ?: devtype}) mapped to ${drivername} driver"
+    }
+
 drivername = getYoLinkDriverName(drivername)
     if (!drivername.endsWith("Local")) drivername += " Local"
 
@@ -1168,45 +1192,83 @@ def getLeakSensorDriver(name,type,token,devId) {
     return driver
 }  
 
-// YoLink MultiOutlet (YS6801-UC) and Smart Outdoor Plug (YS6802-UC/SH-18A) are both reported as "MultiOutlet"
-// If device only returns delays on 2 channels (0 and 1), assume it's a Smart Outdoor Plug 
-def getMultiOutletDriver(name,type,token,devId) {
-    def driver = "MultiOutlet"
-    try {  
-        def request = [:]
-        request.put("method", "MultiOutlet.getState")                   
-        request.put("targetDevice", "${devId}") 
-        request.put("token", "${token}") 
-        
-        def object = pollAPI(request, name, type)
-         
-        if (object) {
-            logDebug("getMultiOutletDriver() - pollAPI() response: ${object}")     
-            
-            if (object.code == "000000") {             
-                def delay = object.data?.delays[2]                                            
-                
-                if (delay==null) { 
-                    log.info "$name appears to be a Smart Outdoor Plug."
-                    driver = "Smart Outdoor Plug"
-                } else {
-                    log.info "$name appears to be a MultiOutlet Device."
-                }    
-            } else {  //Error
-                log.error "Local API polling returned error: $object.code - " + translateCode(object.code)               
-            }     
-        } else {
-            log.error "No response from Local API request"
-        } 
-    } catch (groovyx.net.http.HttpResponseException e) {
-        if (e?.statusCode == UNAUTHORIZED_CODE) { 
-            log.error("getMultiOutletDriver() - Unauthorized Exception")
-        } else {
-            log.error("getMultiOutletDriver() - Exception $e")
-        }                 
+private Map probeRelayMethod(String method, name, type, token, devId) {
+    def request = [method: method, targetDevice: "${devId}", token: "${token}"]
+    def object = pollAPI(request, name, type)
+    logDebug("probeRelayMethod(${method}) -> ${object}")
+    return object
+}
+
+private String classifyRelayDriverFromProbe(String method, object, name) {
+    if (method?.startsWith("MultiOutlet.")) {
+        def delays = object?.data?.delays
+        def delay2 = null
+        if (delays instanceof List && delays.size() > 2) {
+            delay2 = delays[2]
+        } else if (delays instanceof Map) {
+            delay2 = delays[2]
+        }
+        if (delay2 == null) {
+            log.info "$name appears to be a Smart Outdoor Plug."
+            return "SmartOutdoorPlug"
+        }
+        log.info "$name appears to be a MultiOutlet Device."
+        return "MultiOutlet"
     }
-    return driver
-}   
+    if (method?.startsWith("Switch.")) {
+        log.info "$name appears to use Switch API namespace."
+        return "Switch"
+    }
+    log.info "$name appears to use Outlet API namespace."
+    return "Outlet"
+}
+
+// Generic relay-family probe: supports MultiOutlet, SmartOutdoorPlug, Outlet, and Switch.
+def getRelayFamilyDriver(name, type, token, devId, modelName=null) {
+    state.outletFamilyChoice = (state.outletFamilyChoice ?: [:])
+
+    String t = (type ?: "").toString()
+    String model = (modelName ?: "").toString().toUpperCase()
+
+    List<String> probeOrder
+    if (["MultiOutlet", "SmartOutdoorPlug"].contains(t) || model.startsWith("YS680")) {
+        probeOrder = ["MultiOutlet.getState", "Outlet.getState", "Switch.getState"]
+    } else if (t == "Switch") {
+        probeOrder = ["Switch.getState", "Outlet.getState", "MultiOutlet.getState"]
+    } else {
+        probeOrder = ["Outlet.getState", "Switch.getState", "MultiOutlet.getState"]
+    }
+
+    String fallback = (["MultiOutlet", "SmartOutdoorPlug"].contains(t) || model.startsWith("YS680")) ? "MultiOutlet" : "Outlet"
+
+    try {
+        for (String method : probeOrder) {
+            def obj = probeRelayMethod(method, name, type, token, devId)
+            if (obj?.code == "000000") {
+                String selected = classifyRelayDriverFromProbe(method, obj, name)
+                state.outletFamilyChoice["${devId}"] = selected
+                return selected
+            }
+            logDebug("${name} did not respond to ${method} (code=${obj?.code})")
+        }
+
+        log.warn "$name did not respond successfully to relay-family probes; defaulting to ${fallback}."
+        state.outletFamilyChoice["${devId}"] = "${fallback} (default)"
+    } catch (Exception e) {
+        log.error("getRelayFamilyDriver() - Exception $e")
+        state.outletFamilyChoice["${devId}"] = "${fallback} (default)"
+    }
+    return fallback
+}
+
+// Backward-compatible wrappers
+def getMultiOutletDriver(name, type, token, devId) {
+    return getRelayFamilyDriver(name, type, token, devId, null)
+}
+
+def getOutletFamilyDriver(name, type, token, devId) {
+    return getRelayFamilyDriver(name, type, token, devId, null)
+}
 
 def logDebug(msg) {
     if (debugging == "True") {

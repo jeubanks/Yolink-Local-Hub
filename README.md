@@ -24,6 +24,8 @@ This is an **App + drivers** that let Hubitat talk **directly** to the **YoLink 
 - Leak Sensor / Leak Sensor 3
 - Door Sensor
 - Power Failure Alarm (PFA)
+- Outlet / Power Plug (YS6604)
+- Switch-class plugs/devices (reported as `Switch`)
 - MQTT Listener “device” (handles the message bus)
 
 > More YoLink device types can be added; PRs welcome.

@@ -1,12 +1,12 @@
 {
   "packageName": "YoLink Local Hub ↔ Hubitat (Local-only)",
   "author": "Almulder",
-  "version": "1.2.0",
+  "version": "1.2.3",
   "minimumHEVersion": "2.4.0",
   "dateReleased": "2025-12-22",
   "documentationLink": "https://github.com/almulder/Yolink-Local-Hub",
   "communityLink": "https://community.hubitat.com/t/yolink-local-hub-hubitat-local-only-app-drivers-beta/156494",
-  "releaseNotes": "HPM packaging: App + MQTT required; device drivers optional/selectable.",
+  "releaseNotes": "Add YS6604 runtime fallback: auto-probe Outlet.getState then Switch.getState for correct driver mapping.",
   "tags": [
     "Integration",
     "YoLink",
@@ -57,6 +57,20 @@
       "name": "YoLink PowerFailureAlarm Device Local",
       "namespace": "Almulder",
       "location": "https://raw.githubusercontent.com/almulder/Yolink-Local-Hub/refs/heads/main/Drivers/YoLink%20PowerFailureAlarm%20Device%20Local.groovy",
+      "required": false
+    },
+    {
+      "id": "2f761be7-2f3f-49f5-8d27-17703d67c3db",
+      "name": "YoLink Outlet Device Local",
+      "namespace": "Almulder",
+      "location": "https://raw.githubusercontent.com/almulder/Yolink-Local-Hub/refs/heads/main/Drivers/YoLink%20Outlet%20Device%20Local.groovy",
+      "required": false
+    },
+    {
+      "id": "f2d7cf77-b695-4a10-ad1d-0ade8bf85950",
+      "name": "YoLink Switch Device Local",
+      "namespace": "Almulder",
+      "location": "https://raw.githubusercontent.com/almulder/Yolink-Local-Hub/refs/heads/main/Drivers/YoLink%20Switch%20Device%20Local.groovy",
       "required": false
     },
     {
