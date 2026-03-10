@@ -599,6 +599,12 @@ def pollDevices() {
 }
 
 def reconcileNextDevice() {
+    // Guard: reject stale or duplicate runIn callbacks that arrive after reconcile is done/reset
+    if (!state.reconcileInProgress) {
+        logDebug("Reconcile: reconcileNextDevice() called but reconcile is not in progress — ignoring.")
+        return
+    }
+
     List q = (state.reconcileQueue ?: []) as List
     if (!q || q.isEmpty()) {
         state.reconcileInProgress = false
@@ -631,6 +637,10 @@ def reconcileNextDevice() {
             logDebug("Reconcile: ${dev.displayName} -> ${invoked ? 'invoked' : 'no suitable method'}")
         } catch (e) {
             log.error "reconcileNextDevice() exception for ${dev}: ${e}"
+            // Clear flag so future reconcile runs are not permanently blocked
+            state.reconcileInProgress = false
+            state.reconcileQueue = []
+            return
         }
     } else {
         log.warn "Reconcile: child with DNI ${dni} not found."
