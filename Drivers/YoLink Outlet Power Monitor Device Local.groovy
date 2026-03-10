@@ -328,7 +328,7 @@ private void parseDevice(object) {
     Integer gwCount   = asInt(gateways)
 
     if (devNetType) rememberState("loraDevNetType", devNetType)
-    if (signal != null) sendEvent(name: "signal", value: "${signal} dBm")
+    if (signal != null) rememberState("signal", "${signal} dBm")
     if (gwCount != null) rememberState("gateways", gwCount)
     if (gatewayId != null) rememberState("gatewayId", gatewayId)
 

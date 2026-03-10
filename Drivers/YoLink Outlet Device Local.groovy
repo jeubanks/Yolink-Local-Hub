@@ -220,7 +220,7 @@ private void parseDevice(object) {
     def gateways      = lora?.gateways
 
     if (devNetType) rememberState("loraDevNetType", devNetType)
-    if (signal != null) sendEvent(name: "signal", value: "${signal} dBm")
+    if (signal != null) rememberState("signal", "${signal} dBm")
     if (gateways != null) rememberState("gateways", gateways as int)
     if (gatewayId != null) rememberState("gatewayId", gatewayId)
 

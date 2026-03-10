@@ -179,7 +179,7 @@ private void parseDevice(object) {
 
     // LoRa details
     if (lora?.devNetType) rememberState("loraDevNetType", lora.devNetType)
-    if (lora?.signal != null) sendEvent(name: "signal", value: "${lora.signal} dBm")
+    if (lora?.signal != null) rememberState("signal", "${lora.signal} dBm")
     if (lora?.gateways != null) rememberState("gateways", lora.gateways as int)
     if (lora?.gatewayId != null) rememberState("gatewayId", lora.gatewayId)
 
@@ -232,7 +232,7 @@ def processStateData(String payload) {
 
         // LoRa
         if (lora?.devNetType) rememberState("loraDevNetType", lora.devNetType)
-        if (lora?.signal != null) sendEvent(name: "signal", value: "${lora.signal} dBm")
+        if (lora?.signal != null) rememberState("signal", "${lora.signal} dBm")
         if (lora?.gateways != null) rememberState("gateways", lora.gateways as int)
         if (lora?.gatewayId != null) rememberState("gatewayId", lora.gatewayId)
 

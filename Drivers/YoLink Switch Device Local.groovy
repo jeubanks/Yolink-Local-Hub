@@ -250,7 +250,7 @@ private void parseDevice(object) {
     Integer gateways  = asInt(lora?.gateways)
 
     if (devNetType) rememberState("loraDevNetType", devNetType)
-    if (signal != null) sendEvent(name: "signal", value: "${signal} dBm")
+    if (signal != null) rememberState("signal", "${signal} dBm")
     if (gateways != null) rememberState("gateways", gateways)
     if (gatewayId != null) rememberState("gatewayId", gatewayId)
 

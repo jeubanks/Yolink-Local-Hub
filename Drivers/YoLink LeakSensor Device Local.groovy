@@ -202,7 +202,7 @@ private void parseDevice(object) {
 
     if (reportAt) rememberState("reportAt", fmtTs(reportAt))
     if (devNetType) rememberState("loraDevNetType", devNetType)
-    if (signal != null) sendEvent(name: "signal", value: "${signal} dBm")
+    if (signal != null) rememberState("signal", "${signal} dBm")
     if (gateways != null) rememberState("gateways", gateways as int)
     if (gatewayId != null) rememberState("gatewayId", gatewayId)
 
@@ -272,7 +272,7 @@ def processStateData(String payload) {
         if (changedAt) rememberState("stateChangedAt", fmtTs(changedAt))
 
         if (devNetType) rememberState("loraDevNetType", devNetType)
-        if (signal != null) sendEvent(name: "signal", value: "${signal} dBm")
+        if (signal != null) rememberState("signal", "${signal} dBm")
         if (gateways != null) rememberState("gateways", gateways as int)
         if (gatewayId != null) rememberState("gatewayId", gatewayId)
 
