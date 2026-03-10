@@ -25,6 +25,7 @@ This is an **App + drivers** that let Hubitat talk **directly** to the **YoLink 
 - Door Sensor
 - Power Failure Alarm (PFA)
 - Outlet / Power Plug (YS6604)
+- Power-monitoring Plugs/Outlets (YS6614, YS6602) with power/energy telemetry
 - Switch-class plugs/devices (reported as `Switch`)
 - MQTT Listener “device” (handles the message bus)
 

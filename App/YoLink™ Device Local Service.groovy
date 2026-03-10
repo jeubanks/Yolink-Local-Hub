@@ -407,6 +407,24 @@ String getDateTimeFormat() {
     return settings?.dateTimeFormat ?: "MM/dd/yyyy hh:mm:ss a"
 }
 
+String getDeviceTypeFor(String devId) {
+    return state?.deviceType?."${devId}"?.toString()
+}
+
+String getDeviceTokenFor(String devId) {
+    return state?.deviceToken?."${devId}"?.toString()
+}
+
+String refreshDeviceTokenFor(String devId) {
+    if (!devId) return null
+    try {
+        getDeviceToken(devId)
+    } catch (Exception e) {
+        log.error "refreshDeviceTokenFor(${devId}) failed: ${e}"
+    }
+    return state?.deviceToken?."${devId}"?.toString()
+}
+
 // Use the YoLink deviceId as the child DNI (required for MQTT routing).
 // Also migrates any legacy child whose DNI != deviceId by deleting/recreating it.
 private create_yolink_device(Hubitat_dni, devname, devtype, devtoken, devId) {
@@ -440,8 +458,12 @@ private create_yolink_device(Hubitat_dni, devname, devtype, devtoken, devId) {
 
     // Relay family can vary by hub/firmware: MultiOutlet / SmartOutdoorPlug / Outlet / Switch.
     if (["MultiOutlet", "SmartOutdoorPlug", "Outlet", "Switch"].contains(devtype) ||
-        modelName?.toUpperCase()?.startsWith("YS6604")) {
+        modelName?.toUpperCase()?.startsWith("YS6604") ||
+        isPowerMonitoringModel(modelName)) {
         drivername = getRelayFamilyDriver(devname, devtype, devtoken, devId, modelName)
+        if (isPowerMonitoringModel(modelName) && ["Outlet", "Switch"].contains(drivername)) {
+            drivername = "Outlet Power Monitor"
+        }
         log.info "${devname} (${modelName ?: devtype}) mapped to ${drivername} driver"
     }
 
@@ -1315,6 +1337,11 @@ private String classifyRelayDriverFromProbe(String method, object, name) {
     }
     log.info "$name appears to use Outlet API namespace."
     return "Outlet"
+}
+
+private Boolean isPowerMonitoringModel(String modelName) {
+    String model = (modelName ?: "").toString().toUpperCase()
+    return model.startsWith("YS6614") || model.startsWith("YS6602")
 }
 
 // Generic relay-family probe: supports MultiOutlet, SmartOutdoorPlug, Outlet, and Switch.

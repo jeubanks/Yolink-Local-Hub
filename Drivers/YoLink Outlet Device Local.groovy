@@ -29,6 +29,7 @@ metadata {
         capability "Polling"
         capability "Refresh"
         capability "Switch"
+        capability "Outlet"
         capability "PowerMeter"
 
         command "reset"
