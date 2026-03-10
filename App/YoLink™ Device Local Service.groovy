@@ -383,14 +383,18 @@ def initialize() {
     state.unknownWarned = [:]   // reset the “warned” throttle map
 
     scheduleReconcile()
-    runIn(3, reconcileJob)      // or your existing first run
+    runIn(3, "runImmediateReconcile")
 }
 
    
 
 def refresh() {
-    reconcileJob()
+    runImmediateReconcile()
 }     
+
+def runImmediateReconcile() {
+    reconcileJob(true)
+}
 
 def uninstalled() {    
     unschedule()
@@ -1061,31 +1065,121 @@ private void scheduleReconcile() {
     if (settings?.debugging == "True") log.debug "Scheduling reconcile: ${cad}"
 
     // Always clear any prior schedules for this job
-    unschedule(reconcileJob)
+    unschedule("reconcileJob")
 
     switch (cad) {
         case "Off":
             // no schedule
             break
         case "Hourly":
-            runEvery1Hour(reconcileJob)
+            runEvery1Hour("reconcileJob")
             break
         case "Every 6 hours":
-            schedule("0 0 */6 * * ?", reconcileJob)     // top of every 6th hour
+            schedule("0 0 */6 * * ?", "reconcileJob")     // top of every 6th hour
             break
         case "Every 12 hours":
-            schedule("0 0 */12 * * ?", reconcileJob)
+            schedule("0 0 */12 * * ?", "reconcileJob")
             break
         case "Daily":
-            schedule("0 0 3 * * ?", reconcileJob)       // 03:00 hub local time
+            schedule("0 0 3 * * ?", "reconcileJob")       // 03:00 hub local time
             break
     }
+
+    logDebug("Reconcile cadence '${cad}' | next scheduled run: ${nextReconcileRunText(cad)}")
+}
+
+private String nextReconcileRunText(String cad) {
+    if (cad == "Off") return "disabled"
+
+    def tz = location?.timeZone ?: TimeZone.getTimeZone('UTC')
+    Calendar cal = Calendar.getInstance(tz)
+    Date nowDate = new Date()
+    cal.setTime(nowDate)
+
+    switch (cad) {
+        case "Hourly":
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            cal.add(Calendar.HOUR_OF_DAY, 1)
+            break
+
+        case "Every 6 hours":
+        case "Every 12 hours":
+            int step = (cad == "Every 6 hours") ? 6 : 12
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            cal.add(Calendar.HOUR_OF_DAY, 1)
+            while ((cal.get(Calendar.HOUR_OF_DAY) % step) != 0) {
+                cal.add(Calendar.HOUR_OF_DAY, 1)
+            }
+            break
+
+        case "Daily":
+            cal.set(Calendar.HOUR_OF_DAY, 3)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            if (!cal.getTime().after(nowDate)) {
+                cal.add(Calendar.DAY_OF_MONTH, 1)
+            }
+            break
+
+        default:
+            return "unknown"
+    }
+
+    return cal.getTime().format(getDateTimeFormat(), tz)
 }
 
 /** Periodic reconcile: call each child’s poll(true) (HTTP getState) with small staggering */
-def reconcileJob() {
+def reconcileJob(Boolean force = false) {
+    if (!shouldRunReconcile(force)) return
+    state.lastReconcileRunMs = now()
     if (settings?.debugging == "True") log.debug "Reconcile job: HTTP getState across children"
     pollDevices()   // uses the drop-in version below (no reschedule)
+}
+
+private boolean shouldRunReconcile(Boolean force = false) {
+    if (force) return true
+
+    String cad = settings?.reconcileCadence ?: "Every 6 hours"
+    if (cad == "Off") {
+        logDebug("Reconcile skipped: cadence is Off")
+        return false
+    }
+
+    Integer minSeconds = cadenceToSeconds(cad)
+    if (minSeconds <= 0) return true
+
+    long lastMs = (state.lastReconcileRunMs ?: 0L) as long
+    if (lastMs <= 0L) return true
+
+    long elapsedMs = now() - lastMs
+    long minMs = (minSeconds as long) * 1000L
+    if (elapsedMs < minMs) {
+        logDebug("Reconcile skipped: elapsed ${Math.round(elapsedMs/1000)}s < cadence ${minSeconds}s (${cad})")
+        return false
+    }
+    return true
+}
+
+private Integer cadenceToSeconds(String cad) {
+    switch (cad) {
+        case "Hourly":
+            return 3600
+        case "Every 6 hours":
+            return 21600
+        case "Every 12 hours":
+            return 43200
+        case "Daily":
+            return 86400
+        case "Off":
+            return Integer.MAX_VALUE
+        default:
+            return 21600
+    }
 }
 
 
