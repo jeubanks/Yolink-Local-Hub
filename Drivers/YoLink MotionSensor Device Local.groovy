@@ -72,7 +72,7 @@ void ServiceSetup(Hubitat_dni, subnetId, devname, devtype, devtoken, devId, loca
     state.clientSecret = clientSecret
     rememberState("devId", devId)
 
-    logDebug "ServiceSetup: DNI=${state.my_dni}, Device Id=${state.devId}, HubIP=${state.localHubIP}, TokenSet=${!!state.token}"
+    logDebug { "ServiceSetup: DNI=${state.my_dni}, Device Id=${state.devId}, HubIP=${state.localHubIP}, TokenSet=${!!state.token}" }
     reset()
 }
 
@@ -115,7 +115,7 @@ def pollDevice(delay=1) {
 
 /* ========================= Local API Interaction ===================== */
 def getDevicestate() {
-    logDebug("MotionSensor getDevicestate()")
+    logDebug { "MotionSensor getDevicestate()" }
     try {
         def request = [
             method      : "MotionSensor.getState",
@@ -183,7 +183,7 @@ private void parseDevice(object) {
     if (lora?.gateways != null) rememberState("gateways", lora.gateways as int)
     if (lora?.gatewayId != null) rememberState("gatewayId", lora.gatewayId)
 
-    logDebug("Parsed(getState): tempRaw=${tempRaw} => temp=${temp}${activeScale()} batt4=${st?.battery}(${batteryPct}%) motion=${motionStr} state=${stateStr} loraSig=${lora?.signal}")
+    logDebug { "Parsed(getState): tempRaw=${tempRaw} => temp=${temp}${activeScale()} batt4=${st?.battery}(${batteryPct}%) motion=${motionStr} state=${stateStr} loraSig=${lora?.signal}" }
 }
 
 /* ============== MQTT handlers (Report/Alert/StatusChange) ============== */
@@ -240,7 +240,7 @@ def processStateData(String payload) {
         if (changedAt) rememberState("stateChangedAt", fmtTs(changedAt))
 
         lastResponse("MQTT Success")
-        logDebug("MQTT parsed: tempRaw=${tempRaw} => temp=${temp}${activeScale()} batt4=${battery4}(${batteryPct}%) motion=${motionStr} state=${stateStr}")
+        logDebug { "MQTT parsed: tempRaw=${tempRaw} => temp=${temp}${activeScale()} batt4=${battery4}(${batteryPct}%) motion=${motionStr} state=${stateStr}" }
     } catch (e) {
         log.warn "MotionSensor processStateData error: ${e}"
         lastResponse("MQTT Exception")
@@ -271,7 +271,7 @@ def rememberBatteryState(def value, boolean forceSend = false) {
     if (state.battery != value || forceSend) {
         state.battery = value
         sendEvent(name: "battery", value: value?.toString(), unit: "%")
-        logDebug("rememberBatteryState: battery => ${value}% (forceSend=${forceSend})")
+        logDebug { "rememberBatteryState: battery => ${value}% (forceSend=${forceSend})" }
     }
 }
 
@@ -329,7 +329,7 @@ private def normalizeAndConvertTemperature(def tempRaw) {
         if (fCandidate >= 32 && fCandidate <= 122) {
             // Convert that Fahrenheit candidate to °C, then proceed with THSensor conversion path.
             v = (fCandidate - 32.0) * (5.0/9.0)
-            logDebug("Temp normalized (F-136): raw=${tempRaw} => f=${fCandidate} => c=${v}")
+            logDebug { "Temp normalized (F-136): raw=${tempRaw} => f=${fCandidate} => c=${v}" }
         }
     }
 
@@ -375,9 +375,10 @@ def pollError(object) {
     log.warn "Polling error: ${object?.code}"
 }
 
-def logDebug(msg) {
-    if (state.debug == true) log.debug msg
+def logDebug(Closure msg) {
+    if (state.debug == true) log.debug msg()
 }
 
 /* Tolerate parent’s setup call; not exposed as a user command */
 def temperatureScale(String scale) { /* no-op; driver follows parent */ }
+

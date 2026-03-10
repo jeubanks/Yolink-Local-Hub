@@ -66,7 +66,7 @@ void ServiceSetup(Hubitat_dni, subnetId, devname, devtype, devtoken, devId,
     state.clientSecret = clientSecret
     rememberState("devId", devId)
 
-    logDebug "ServiceSetup: DNI=${state.my_dni}, DeviceId=${state.devId}, HubIP=${state.localHubIP}, TokenSet=${!!state.token}"
+    logDebug { "ServiceSetup: DNI=${state.my_dni}, DeviceId=${state.devId}, HubIP=${state.localHubIP}, TokenSet=${!!state.token}" }
     reset()
 }
 
@@ -106,7 +106,7 @@ def pollDevice(delay=1) {
 
 /* ========================= Local API Interaction ===================== */
 def getDevicestate() {
-    logDebug("PFA getDevicestate()")
+    logDebug { "PFA getDevicestate()" }
     try {
         def request = [
             method      : "${state.type}.getState",  // PowerFailureAlarm.getState
@@ -163,9 +163,9 @@ private void parseDevice(object) {
     if (muteOn != null) rememberState("mute",  muteOn.toString())
     if (soundLvl != null) sendEvent(name: "sound", value: soundLvl)
 
-    logDebug("Parsed(getState): state=${rawState}, powerSupply=${supply}, powerSource=${powerSrc}, " +
+    logDebug { "Parsed(getState): state=${rawState}, powerSupply=${supply}, powerSource=${powerSrc}, " +
              "switch=${swState}, battery=${batteryPct}%, sound=${soundLvl}, beep=${beepOn}, mute=${muteOn}, " +
-             "fw=${fwVer}, reportAt=${fmtTs(reportAt)}")
+             "fw=${fwVer}, reportAt=${fmtTs(reportAt)}" }
 }
 
 /* ============================ MQTT handler =========================== */
@@ -238,7 +238,7 @@ def rememberBatteryState(def value, boolean forceSend = false) {
     if (state.battery != value || forceSend) {
         state.battery = value
         sendEvent(name: "battery", value: value?.toString(), unit: "%")
-        logDebug("rememberBatteryState: battery => ${value}% (forceSend=${forceSend})")
+        logDebug { "rememberBatteryState: battery => ${value}% (forceSend=${forceSend})" }
     }
 }
 
@@ -281,7 +281,8 @@ def pollError(o) {
     log.warn "Polling error: ${o?.code}"
 }
 
-def logDebug(msg) { if (state.debug == true) log.debug msg }
+def logDebug(Closure msg) { if (state.debug == true) log.debug msg() }
 
 /* Ignore temperatureScale() broadcasts from parent app */
 def temperatureScale(String scale) { /* not applicable */ }
+

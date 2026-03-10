@@ -74,7 +74,7 @@ void ServiceSetup(Hubitat_dni, subnetId, devname, devtype, devtoken, devId,
     state.clientSecret = clientSecret
     rememberState("devId", devId)
 
-    logDebug("ServiceSetup: DNI=${state.my_dni}, DeviceId=${state.devId}, Type=${state.type}, HubIP=${state.localHubIP}, TokenSet=${!!state.token}")
+    logDebug { "ServiceSetup: DNI=${state.my_dni}, DeviceId=${state.devId}, Type=${state.type}, HubIP=${state.localHubIP}, TokenSet=${!!state.token}" }
     reset()
 }
 
@@ -197,7 +197,7 @@ def updated() {
 
 def poll(force = null) {
     if (!ensureSetupContext()) {
-        logDebug("Poll skipped: device not fully configured yet")
+        logDebug { "Poll skipped: device not fully configured yet" }
         return
     }
     def min_seconds = 5
@@ -214,7 +214,7 @@ def refresh() { poll(true) }
 
 def pollDevice(delay=1) {
     if (!ensureSetupContext()) {
-        logDebug("pollDevice skipped: missing devId/type/token")
+        logDebug { "pollDevice skipped: missing devId/type/token" }
         return
     }
     int d = (delay == null) ? 1 : (delay as int)
@@ -249,10 +249,10 @@ private void setSwitchState(String cmdState) {
 
 def getDevicestate() {
     if (!ensureSetupContext()) {
-        logDebug("getDevicestate skipped: missing devId/type/token")
+        logDebug { "getDevicestate skipped: missing devId/type/token" }
         return
     }
-    logDebug("OutletPower getDevicestate()")
+    logDebug { "OutletPower getDevicestate()" }
     try {
         def object = getStateWithFallback()
         if (object) {
@@ -332,7 +332,7 @@ private void parseDevice(object) {
     if (gwCount != null) rememberState("gateways", gwCount)
     if (gatewayId != null) rememberState("gatewayId", gatewayId)
 
-    logDebug("Parsed: state=${rawState}, switch=${swState}, power=${powerW}, energy=${energyK}, voltage=${voltage}, current=${current}")
+    logDebug { "Parsed: state=${rawState}, switch=${swState}, power=${powerW}, energy=${energyK}, voltage=${voltage}, current=${current}" }
 }
 
 def parse(topic) { processStateData(topic?.payload) }
@@ -457,6 +457,7 @@ def pollError(o) {
     log.warn "Polling error: ${o?.code}"
 }
 
-def logDebug(msg) { if (state.debug == true) log.debug msg }
+def logDebug(Closure msg) { if (state.debug == true) log.debug msg() }
 
 def temperatureScale(String scale) { }
+

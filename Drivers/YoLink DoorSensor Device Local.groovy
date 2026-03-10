@@ -76,7 +76,7 @@ void ServiceSetup(Hubitat_dni, subnetId, devname, devtype, devtoken, devId, loca
     state.clientSecret = clientSecret
     rememberState("devId", devId)
 
-    logDebug("ServiceSetup: DNI=${state.my_dni}, Device Id=${state.devId}, HubIP=${state.localHubIP}, TokenSet=${!!state.token}")
+    logDebug { "ServiceSetup: DNI=${state.my_dni}, Device Id=${state.devId}, HubIP=${state.localHubIP}, TokenSet=${!!state.token}" }
     reset()
 }
 
@@ -119,7 +119,7 @@ def pollDevice(delay=1) {
 
 /* ========================= Local API Interaction ===================== */
 def getDevicestate() {
-    logDebug("DoorSensor getDevicestate()")
+    logDebug { "DoorSensor getDevicestate()" }
     try {
         def request = [
             method      : "${state.type}.getState",  // DoorSensor.getState
@@ -192,7 +192,7 @@ private void parseDevice(object) {
     if (gateways != null) rememberState("gateways", gateways as int)
     if (gatewayId != null) rememberState("gatewayId", gatewayId)
 
-    logDebug("Parsed(getState): contact=${contact} batt4=${batt4}(${batteryPct}%) fw=${fw} tempC=${devTempC} signal=${signal}")
+    logDebug { "Parsed(getState): contact=${contact} batt4=${batt4}(${batteryPct}%) fw=${fw} tempC=${devTempC} signal=${signal}" }
 }
 
 /* ============== MQTT handlers (Report/Alert/StatusChange) ============== */
@@ -292,7 +292,7 @@ def rememberBatteryState(def value, boolean forceSend = false) {
     if (state.battery != value || forceSend) {
         state.battery = value
         sendEvent(name: "battery", value: value?.toString(), unit: "%")
-        logDebug("rememberBatteryState: battery => ${value}% (forceSend=${forceSend})")
+        logDebug { "rememberBatteryState: battery => ${value}% (forceSend=${forceSend})" }
     }
 }
 
@@ -344,7 +344,7 @@ def pollError(o) {
     log.warn "Polling error: ${o?.code}"
 }
 
-def logDebug(msg) { if (state.debug == true) log.debug msg }
+def logDebug(Closure msg) { if (state.debug == true) log.debug msg() }
 
 /* Tolerate parent's generic temperatureScale() ping; driver follows parent */
 def temperatureScale(String scale) { /* no-op */ }
@@ -359,3 +359,4 @@ private String normalizeContact(String raw) {
         default:       return raw
     }
 }
+

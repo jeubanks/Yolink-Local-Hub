@@ -243,7 +243,7 @@ def diagnostics() {
             timeout: 10
         ]) { resp -> /* ignore */ }
     } catch (e) {
-        logDebug("Delete ${errFile} failed (ok if first run): ${e?.message}")
+        logDebug { "Delete ${errFile} failed (ok if first run): ${e?.message}" }
     }
 
     def errData = ""
@@ -273,7 +273,7 @@ def diagnostics() {
             if (Hubitat_dni != null) {
                 Keep_Hubitat_dni += Hubitat_dni
                 countNewChildDevices++
-                logDebug("Created $countNewChildDevices of ${exposed.size()} selected devices.")
+                logDebug { "Created $countNewChildDevices of ${exposed.size()} selected devices." }
             }
         }
 
@@ -554,15 +554,15 @@ def getDeviceToken(dni) {
             def responseValues=[]              
             if (object.data.devices instanceof Collection) { 
                 responseValues=object.data.devices           
-                logDebug("Parsing multiple devices: ${responseValues}")
+                logDebug { "Parsing multiple devices: ${responseValues}" }
             } else {
                 responseValues[0]=object.data.devices                    
-                logDebug("Parsing single device: ${responseValues}")
+                logDebug { "Parsing single device: ${responseValues}" }
             }                
                 
             for (def device : responseValues) {               
                 if (device.deviceId == dni) {
-                    logDebug("Located ${device.name}")
+                    logDebug { "Located ${device.name}" }
                     def child = findChild(dni)
                     child.setDeviceToken(device.token)
                     state.deviceToken[dni] = device.token 
@@ -584,24 +584,24 @@ def getDeviceToken(dni) {
 def pollDevices() {
     def kids = getChildDevices()
     if (!kids || kids.isEmpty()) {
-        logDebug("Reconcile: no child devices found.")
+        logDebug { "Reconcile: no child devices found." }
         return
     }
     if (state.reconcileInProgress) {
-        logDebug("Reconcile already in progress; skipping new start.")
+        logDebug { "Reconcile already in progress; skipping new start." }
         return
     }
     // Build a queue of DNIs to process
     state.reconcileQueue = kids*.deviceNetworkId
     state.reconcileInProgress = true
-    logDebug("Reconcile: queued ${state.reconcileQueue.size()} device(s).")
+    logDebug { "Reconcile: queued ${state.reconcileQueue.size()} device(s)." }
     runIn(1, "reconcileNextDevice")
 }
 
 def reconcileNextDevice() {
     // Guard: reject stale or duplicate runIn callbacks that arrive after reconcile is done/reset
     if (!state.reconcileInProgress) {
-        logDebug("Reconcile: reconcileNextDevice() called but reconcile is not in progress — ignoring.")
+        logDebug { "Reconcile: reconcileNextDevice() called but reconcile is not in progress — ignoring." }
         return
     }
 
@@ -609,7 +609,7 @@ def reconcileNextDevice() {
     if (!q || q.isEmpty()) {
         state.reconcileInProgress = false
         state.reconcileQueue = []
-        logDebug("Reconcile: finished all devices.")
+        logDebug { "Reconcile: finished all devices." }
         return
     }
 
@@ -634,7 +634,7 @@ def reconcileNextDevice() {
                 try { dev.refresh(); invoked = true } catch (ignored) {}
             }
 
-            logDebug("Reconcile: ${dev.displayName} -> ${invoked ? 'invoked' : 'no suitable method'}")
+            logDebug { "Reconcile: ${dev.displayName} -> ${invoked ? 'invoked' : 'no suitable method'}" }
         } catch (e) {
             log.error "reconcileNextDevice() exception for ${dev}: ${e}"
             // Clear flag so future reconcile runs are not permanently blocked
@@ -655,7 +655,7 @@ def reconcileNextDevice() {
         else runIn(stepSec, "reconcileNextDevice")
     } else {
         state.reconcileInProgress = false
-        logDebug("Reconcile: finished all devices.")
+        logDebug { "Reconcile: finished all devices." }
     }
 }
 
@@ -671,7 +671,7 @@ def passMQTT(topic) {
             def payload = new JsonSlurper().parseText(payloadStr)
             devId = payload?.deviceId as String
         } catch (e) {
-            logDebug("passMQTT: malformed JSON payload: ${e?.message}")
+            logDebug { "passMQTT: malformed JSON payload: ${e?.message}" }
             return null
         }
     }
@@ -680,7 +680,7 @@ def passMQTT(topic) {
     def dev = getChildDevice(devId)
     if (dev) {
         try {
-            logDebug("Passing MQTT to ${dev.displayName} (${dev.deviceNetworkId})")
+            logDebug { "Passing MQTT to ${dev.displayName} (${dev.deviceNetworkId})" }
             if (dev.respondsTo('processStateData')) {
                 dev.processStateData(payloadStr)   // preferred
             } else {
@@ -697,7 +697,7 @@ def passMQTT(topic) {
     boolean isExposed = (settings?.exposed instanceof Collection) && settings.exposed.contains(devId)
     if (!isExposed) {
         // The user did NOT add this device in the app — ignore quietly (debug only).
-        logDebug("Ignoring MQTT for unselected device ${devId}")
+        logDebug { "Ignoring MQTT for unselected device ${devId}" }
         return null
     }
 
@@ -711,7 +711,7 @@ def passMQTT(topic) {
         log.warn "MQTT received for selected device ${devId}, but child device not found. Did it get deleted? Recreate from the app."
         warned[devId] = nowMs
     } else {
-        logDebug("Suppressed repeat warning for missing selected device ${devId}")
+        logDebug { "Suppressed repeat warning for missing selected device ${devId}" }
     }
     state.unknownWarned = warned
     return null
@@ -745,7 +745,7 @@ private def getImagePath() {return "https://raw.githubusercontent.com/almulder/Y
 def AuthToken() {state.access_token}  
 
 def refreshAuthToken() {   
-    logDebug("Refreshing access token (Local API)")
+    logDebug { "Refreshing access token (Local API)" }
     boolean rc = false    
             
     state?.Client_ID = Client_ID.trim()
@@ -763,7 +763,7 @@ def refreshAuthToken() {
     def headers = ["Content-Type": "application/x-www-form-urlencoded"]
     def body = "grant_type=client_credentials&client_id=${state.Client_ID}&client_secret=${state.Client_Secret}"
 
-    logDebug("Attempting to get local access token from ${url}")
+    logDebug { "Attempting to get local access token from ${url}" }
     
     try {     
         httpPost([
@@ -774,10 +774,10 @@ def refreshAuthToken() {
             timeout: 10
         ]) { resp ->                     
             if (resp.status == 200 && resp.data?.access_token) {
-                logDebug("Local API Response: SUCCESS")
+                logDebug { "Local API Response: SUCCESS" }
                 state.access_token     = resp.data.access_token                    
                 state.access_token_ttl = resp.data?.expires_in                    
-                logDebug("New local access token = ${state.access_token}")
+                logDebug { "New local access token = ${state.access_token}" }
                 rc = true
             } else { 
                 state.token_error = "Local API token request failed (HTTP ${resp.status})"
@@ -796,7 +796,7 @@ def refreshAuthToken() {
         log.error state.token_error
     }  
     
-    logDebug("refreshAuthToken() RC = ${rc}")
+    logDebug { "refreshAuthToken() RC = ${rc}" }
     return rc
 }
 
@@ -889,7 +889,7 @@ def getDevices() {
 def pollAPI(body, name=null, type=null){
     def rc=null
     def retry=3
-    logDebug("pollAPI(${body})")
+    logDebug { "pollAPI(${body})" }
         
     while ((rc == null) && (retry>0)) {      
         def headers = ["Authorization": "Bearer ${state.access_token}"]
@@ -899,24 +899,24 @@ def pollAPI(body, name=null, type=null){
             body    : body 
         ]     
         
-        logDebug("Attempting to poll Local API using parameters: ${Params}")
+        logDebug { "Attempting to poll Local API using parameters: ${Params}" }
         
         try {     
             httpPostJson(Params) { resp ->
                 if (resp.data) {                    
-                    logDebug("API Response: ${resp.data}")
+                    logDebug { "API Response: ${resp.data}" }
                     def object = resp.data
                     def code = object.code                  
                     def desc = object.desc  
                     
                     if ((!desc) || (code==desc)) {
                         desc = translateCode(code)
-                        logDebug("Translated Response: ${desc}")
+                        logDebug { "Translated Response: ${desc}" }
                     }  
                     
                     switch (code) {
                         case "000000": 
-                            logDebug("Polling of Local API completed successfully")
+                            logDebug { "Polling of Local API completed successfully" }
                             rc = object
                             break;
                         
@@ -944,7 +944,7 @@ def pollAPI(body, name=null, type=null){
                         case "010104":
                              if (retry>0) {
                                 retry--
-                                logDebug('Request token expired. Refreshing and retry...')
+                                logDebug { 'Request token expired. Refreshing and retry...' }
                                 refreshAuthToken()                                         
                              } else {          
                                 log.error "Request token expired and retry failed."
@@ -1074,7 +1074,7 @@ def scheduledDays(weekdays) {
      ndx--  
    }    
     
-   logDebug("Scheduled Days: ${days}")
+   logDebug { "Scheduled Days: ${days}" }
    return days 
 }
 
@@ -1131,7 +1131,7 @@ private void scheduleReconcile() {
             break
     }
 
-    logDebug("Reconcile cadence '${cad}' | next scheduled run: ${nextReconcileRunText(cad)}")
+    logDebug { "Reconcile cadence '${cad}' | next scheduled run: ${nextReconcileRunText(cad)}" }
 }
 
 private String nextReconcileRunText(String cad) {
@@ -1192,7 +1192,7 @@ private boolean shouldRunReconcile(Boolean force = false) {
 
     String cad = settings?.reconcileCadence ?: "Every 6 hours"
     if (cad == "Off") {
-        logDebug("Reconcile skipped: cadence is Off")
+        logDebug { "Reconcile skipped: cadence is Off" }
         return false
     }
 
@@ -1205,7 +1205,7 @@ private boolean shouldRunReconcile(Boolean force = false) {
     long elapsedMs = now() - lastMs
     long minMs = (minSeconds as long) * 1000L
     if (elapsedMs < minMs) {
-        logDebug("Reconcile skipped: elapsed ${Math.round(elapsedMs/1000)}s < cadence ${minSeconds}s (${cad})")
+        logDebug { "Reconcile skipped: elapsed ${Math.round(elapsedMs/1000)}s < cadence ${minSeconds}s (${cad})" }
         return false
     }
     return true
@@ -1266,7 +1266,7 @@ def getTHSensorDriver(name, type, token, devId) {
         def object = pollAPI(request, name, type)
 
         if (object) {
-            logDebug("getTHSensorDriver()> pollAPI() response: ${object}")
+            logDebug { "getTHSensorDriver()> pollAPI() response: ${object}" }
 
             if (object.code == "000000") {
                 def state = object.data?.state ?: [:]
@@ -1305,7 +1305,7 @@ def getLeakSensorDriver(name,type,token,devId) {
         def object = pollAPI(request, name, type)
          
         if (object) {
-            logDebug("getLeakSensorDriver()> pollAPI() response: ${object}")     
+            logDebug { "getLeakSensorDriver()> pollAPI() response: ${object}" }     
             
             if (object.code == "000000") {             
                 def supportChangeMode = object.data.state.supportChangeMode                            
@@ -1335,7 +1335,7 @@ def getLeakSensorDriver(name,type,token,devId) {
 private Map probeRelayMethod(String method, name, type, token, devId) {
     def request = [method: method, targetDevice: "${devId}", token: "${token}"]
     def object = pollAPI(request, name, type)
-    logDebug("probeRelayMethod(${method}) -> ${object}")
+    logDebug { "probeRelayMethod(${method}) -> ${object}" }
     return object
 }
 
@@ -1394,7 +1394,7 @@ def getRelayFamilyDriver(name, type, token, devId, modelName=null) {
                 state.outletFamilyChoice["${devId}"] = selected
                 return selected
             }
-            logDebug("${name} did not respond to ${method} (code=${obj?.code})")
+            logDebug { "${name} did not respond to ${method} (code=${obj?.code})" }
         }
 
         log.warn "$name did not respond successfully to relay-family probes; defaulting to ${fallback}."
@@ -1415,10 +1415,10 @@ def getOutletFamilyDriver(name, type, token, devId) {
     return getRelayFamilyDriver(name, type, token, devId, null)
 }
 
-def logDebug(msg) {
+def logDebug(Closure msg) {
     if (debugging == "True") {
-       log.debug msg
-    }   
+       log.debug msg()
+    }
 }    
 
 def appendData(olddata, newdata) {
@@ -1467,3 +1467,4 @@ Boolean writeFile(String fName, String fData) {
     }
     return ok
 }
+

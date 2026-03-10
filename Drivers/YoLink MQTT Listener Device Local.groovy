@@ -50,17 +50,17 @@ metadata {
 def temperatureScale(String scale = null) {
     if (scale) {
         state.temperatureScale = scale
-        logDebug("temperatureScale set to '${scale}' (stored only)")
+        logDebug { "temperatureScale set to '${scale}' (stored only)" }
     }
     return state.temperatureScale ?: (parent?.temperatureScale() ?: "F")
 }
 
 void setDeviceToken(token) {
     if (state.token != token) {
-        logDebug("Device token changed from '${state.token}' to '${token}'")
+        logDebug { "Device token changed from '${state.token}' to '${token}'" }
         state.token = token
     } else {
-        logDebug("Device token unchanged: '${state.token}'")
+        logDebug { "Device token unchanged: '${state.token}'" }
     }
 }
 
@@ -76,7 +76,7 @@ void ServiceSetup(Hubitat_dni, subnetId, devname, devtype, devtoken, devId, loca
     state.clientSecret = clientSecret ?: parent?.settings?.Client_Secret
     rememberState("devId", devId)
 
-    logDebug("ServiceSetup(): subnetId=${state.subnetId}, localHubIP=${state.localHubIP}, clientID=${state.clientId}, secretLen=${state.clientSecret?.length()}")
+    logDebug { "ServiceSetup(): subnetId=${state.subnetId}, localHubIP=${state.localHubIP}, clientID=${state.clientId}, secretLen=${state.clientSecret?.length()}" }
     connect()
 }
 
@@ -122,7 +122,7 @@ def uninstalled() {
 def poll() {
     def isConn = interfaces.mqtt.isConnected()
     rememberState("online", isConn)
-    logDebug("poll(): MQTT isConnected() = ${isConn}")
+    logDebug { "poll(): MQTT isConnected() = ${isConn}" }
     if (isConn) {
         rememberState("MQTT", "connected")
     } else {
@@ -137,18 +137,18 @@ def pollDevice(delay=1) {
     sendEvent(name:"lastPoll", value: nowFmt())
 }
 
-def logDebug(msg) {
-    if (state.debug) log.debug "[${timestamp()}] ${msg}"
+def logDebug(Closure msg) {
+    if (state.debug) log.debug "[${timestamp()}] ${msg()}"
 }
 
 def connect() {
-    logDebug("connect(): Preparing MQTT reconnect...")
+    logDebug { "connect(): Preparing MQTT reconnect..." }
     unsubscribe_MQTT()
     interfaces.mqtt.disconnect()
     if (!state.clientId || !state.clientSecret) {
         state.clientId = parent?.settings?.Client_ID
         state.clientSecret = parent?.settings?.Client_Secret
-        logDebug("connect(): Loaded creds from parent: clientId=${state.clientId}, secretLen=${state.clientSecret?.length()}")
+        logDebug { "connect(): Loaded creds from parent: clientId=${state.clientId}, secretLen=${state.clientSecret?.length()}" }
     }
     if (!state.subnetId) {
         log.error "connect(): subnetId is NULL — cannot subscribe to valid topic!"
@@ -166,7 +166,7 @@ def establish_MQTT_connection(mqtt_ID) {
         def username  = state.clientId
         def password  = state.clientSecret
         def topic     = "ylsubnet/${state.subnetId}/+/report"
-        logDebug("MQTT connect: broker=${broker}, mqtt_ID=${mqtt_ID}, username=${username}, secretLen=${password?.length()}, topic=${topic}")
+        logDebug { "MQTT connect: broker=${broker}, mqtt_ID=${mqtt_ID}, username=${username}, secretLen=${password?.length()}, topic=${topic}" }
         if (!username || !password) {
             log.error "Missing username or password — cannot connect"
             return
@@ -176,7 +176,7 @@ def establish_MQTT_connection(mqtt_ID) {
             return
         }
         interfaces.mqtt.connect(broker, mqtt_ID, username, password, cleanSession: 1, keepAlive: 60)
-        logDebug("MQTT isConnected() after connect: ${interfaces.mqtt.isConnected()}")
+        logDebug { "MQTT isConnected() after connect: ${interfaces.mqtt.isConnected()}" }
         runInMillis(2000, "delayedSubscribe")
         MQTT = "connected"
     } catch (e) {
@@ -195,14 +195,14 @@ def delayedSubscribe() {
         return
     }
     if (!interfaces.mqtt.isConnected()) {
-        logDebug("Skipping subscribe — not connected")
+        logDebug { "Skipping subscribe — not connected" }
         return
     }
     def topic = "ylsubnet/${state.subnetId}/+/report"
-    logDebug("Subscribing to ${topic}, isConnected=${interfaces.mqtt.isConnected()}")
+    logDebug { "Subscribing to ${topic}, isConnected=${interfaces.mqtt.isConnected()}" }
     try {
         interfaces.mqtt.subscribe(topic, 1)
-        logDebug("Subscribe complete. Connected? ${interfaces.mqtt.isConnected()}")
+        logDebug { "Subscribe complete. Connected? ${interfaces.mqtt.isConnected()}" }
     } catch (e) {
         log.error("[${timestamp()}] Subscription error: ${e.getMessage()}")
         if (state.debug) e.printStackTrace()
@@ -214,7 +214,7 @@ def unsubscribe_MQTT() {
     def topic = "ylsubnet/${state.subnetId}/+/report"
     try {
         interfaces.mqtt.unsubscribe(topic)
-        logDebug("Unsubscribed from ${topic}")
+        logDebug { "Unsubscribed from ${topic}" }
     } catch (e) {
         log.error("Unsubscribe error: ${e.getMessage()}")
         if (state.debug) e.printStackTrace()
@@ -224,7 +224,7 @@ def unsubscribe_MQTT() {
 /* =============================== MQTT =============================== */
 
 def mqttClientStatus(String message) {
-    logDebug("mqttClientStatus(): ${message}")
+    logDebug { "mqttClientStatus(): ${message}" }
     if (message.toLowerCase().startsWith("error")) {
         log.error("[${timestamp()}] MQTT Error: ${message} | state: subnetId=${state.subnetId}, brokerIP=${state.localHubIP}, clientId=${state.clientId}")
         try {
@@ -237,7 +237,7 @@ def mqttClientStatus(String message) {
         }
         runIn(30, connect)
     } else {
-        logDebug("MQTT status update (non-error): ${message}")
+        logDebug { "MQTT status update (non-error): ${message}" }
     }
 }
 
@@ -245,8 +245,8 @@ def parse(message) {
     state.lastMsgTs = now()
     def parsed = interfaces.mqtt.parseMessage(message)
 
-    logDebug("MQTT Topic: ${parsed?.topic}")
-    logDebug("MQTT Payload: ${parsed?.payload}")
+    logDebug { "MQTT Topic: ${parsed?.topic}" }
+    logDebug { "MQTT Payload: ${parsed?.payload}" }
 
     try {
         def json = new groovy.json.JsonSlurper().parseText(parsed?.payload)
@@ -276,15 +276,15 @@ def parse(message) {
             parsed.payload = groovy.json.JsonOutput.toJson(json)
         }
     } catch (e) {
-        logDebug("Failed to parse or enrich MQTT payload: ${e.message}")
+        logDebug { "Failed to parse or enrich MQTT payload: ${e.message}" }
     }
 
     if (parsed?.topic?.startsWith("ylsubnet/${state.subnetId}")) {
         def device = parent.passMQTT(parsed)
-        if (device) logDebug("Passed MQTT message to device ${device}")
-        else        logDebug("No device matched for MQTT payload.")
+        if (device) logDebug { "Passed MQTT message to device ${device}" }
+        else        logDebug { "No device matched for MQTT payload." }
     } else {
-        logDebug("Received MQTT message not for this subnet ID.")
+        logDebug { "Received MQTT message not for this subnet ID." }
     }
 }
 
@@ -345,12 +345,13 @@ private String fmtTs(def ts) {
 def mqttWatchdog() {
     def connected = interfaces.mqtt.isConnected()
     if (!connected) {
-        logDebug("MQTT watchdog: Connection is DOWN — triggering reconnect...")
+        logDebug { "MQTT watchdog: Connection is DOWN — triggering reconnect..." }
         connect()
     } else {
         if (state.lastMsgTs && now() - state.lastMsgTs > 60000) {
-            logDebug("No MQTT messages for ${(now()-state.lastMsgTs)/1000} seconds — connection may be stale")
+            logDebug { "No MQTT messages for ${(now()-state.lastMsgTs)/1000} seconds — connection may be stale" }
         }
-        logDebug("MQTT watchdog: connection healthy")
+        logDebug { "MQTT watchdog: connection healthy" }
     }
 }
+

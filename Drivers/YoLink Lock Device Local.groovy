@@ -74,7 +74,7 @@ void ServiceSetup(Hubitat_dni, subnetId, devname, devtype, devtoken, devId,
     state.clientSecret = clientSecret
     rememberState("devId", devId)
 
-    logDebug("ServiceSetup: DNI=${state.my_dni}, DeviceId=${state.devId}, Type=${state.type}, HubIP=${state.localHubIP}, TokenSet=${!!state.token}")
+    logDebug { "ServiceSetup: DNI=${state.my_dni}, DeviceId=${state.devId}, Type=${state.type}, HubIP=${state.localHubIP}, TokenSet=${!!state.token}" }
     reset()
 }
 
@@ -160,7 +160,7 @@ private Map getStateWithFallback(boolean fetchFirst = false) {
             if (object?.code != "010203") return object   // real error, no benefit trying other types
         }
         // All methods returned 010203 — type must have changed; fall through to rediscovery
-        logDebug("getStateWithFallback: known type '${knownType}' unsupported, rediscovering...")
+        logDebug { "getStateWithFallback: known type '${knownType}' unsupported, rediscovering..." }
     }
 
     // Slow path: full candidate scan (first install or after API version change)
@@ -195,7 +195,7 @@ def updated() {
 
 def poll(force = null) {
     if (!ensureSetupContext()) {
-        logDebug("Poll skipped: device not fully configured yet")
+        logDebug { "Poll skipped: device not fully configured yet" }
         return
     }
     def min_seconds = 5
@@ -212,7 +212,7 @@ def refresh() { poll(true) }
 
 def pollDevice(delay=1) {
     if (!ensureSetupContext()) {
-        logDebug("pollDevice skipped: missing devId/type/token")
+        logDebug { "pollDevice skipped: missing devId/type/token" }
         return
     }
     int d = (delay == null) ? 1 : (delay as int)
@@ -223,10 +223,10 @@ def pollDevice(delay=1) {
 
 def getDevicestate() {
     if (!ensureSetupContext()) {
-        logDebug("getDevicestate skipped: missing devId/type/token")
+        logDebug { "getDevicestate skipped: missing devId/type/token" }
         return
     }
-    logDebug("Lock getDevicestate()")
+    logDebug { "Lock getDevicestate()" }
     try {
         def object = getStateWithFallback(false)
         if (object) {
@@ -272,7 +272,7 @@ private void setLockState(String targetState) {
             return   // real error, no benefit trying other types
         }
         // 010203 — type must have changed; fall through to rediscovery
-        logDebug("setLockState: known type '${knownType}' unsupported, rediscovering...")
+        logDebug { "setLockState: known type '${knownType}' unsupported, rediscovering..." }
     }
 
     // Slow path: candidate scan (first install or after API version change)
@@ -387,7 +387,7 @@ private void parseDevice(object) {
     if (gateways != null) rememberState("gateways", gateways)
     if (gatewayId) rememberState("gatewayId", gatewayId)
 
-    logDebug("Parsed: lock=${lockState}, batteryRaw=${battery4}, batteryPct=${batteryPct}, autoLock=${autoLock}, signal=${signal}")
+    logDebug { "Parsed: lock=${lockState}, batteryRaw=${battery4}, batteryPct=${batteryPct}, autoLock=${autoLock}, signal=${signal}" }
 }
 
 def parse(topic) { processStateData(topic?.payload) }
@@ -491,6 +491,7 @@ def pollError(o) {
     log.warn "Polling error: ${o?.code}"
 }
 
-def logDebug(msg) { if (state.debug == true) log.debug msg }
+def logDebug(Closure msg) { if (state.debug == true) log.debug msg() }
 
 def temperatureScale(String scale) { }
+

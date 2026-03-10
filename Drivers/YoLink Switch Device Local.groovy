@@ -77,7 +77,7 @@ void ServiceSetup(Hubitat_dni, subnetId, devname, devtype, devtoken, devId,
     state.clientSecret = clientSecret
     rememberState("devId", devId)
 
-    logDebug("ServiceSetup: DNI=${state.my_dni}, DeviceId=${state.devId}, Type=${state.type}, HubIP=${state.localHubIP}, TokenSet=${!!state.token}")
+    logDebug { "ServiceSetup: DNI=${state.my_dni}, DeviceId=${state.devId}, Type=${state.type}, HubIP=${state.localHubIP}, TokenSet=${!!state.token}" }
     reset()
 }
 
@@ -168,7 +168,7 @@ private Map sendCommand(String method, Map params) {
 
 /* ========================= Local API Interaction ===================== */
 def getDevicestate() {
-    logDebug("Switch getDevicestate()")
+    logDebug { "Switch getDevicestate()" }
     try {
         def request = [
             method      : "${state.type}.getState",
@@ -254,7 +254,7 @@ private void parseDevice(object) {
     if (gateways != null) rememberState("gateways", gateways)
     if (gatewayId != null) rememberState("gatewayId", gatewayId)
 
-    logDebug("Parsed: state=${rawState}, switch=${swState}, power=${powerW}, energy=${energyK}, voltage=${voltageV}, current=${currentA}")
+    logDebug { "Parsed: state=${rawState}, switch=${swState}, power=${powerW}, energy=${energyK}, voltage=${voltageV}, current=${currentA}" }
 }
 
 /* ============================ MQTT handler =========================== */
@@ -376,7 +376,8 @@ def pollError(o) {
     log.warn "Polling error: ${o?.code}"
 }
 
-def logDebug(msg) { if (state.debug == true) log.debug msg }
+def logDebug(Closure msg) { if (state.debug == true) log.debug msg() }
 
 /* Ignore temperatureScale() broadcasts from parent app */
 def temperatureScale(String scale) { /* not applicable */ }
+
