@@ -1,6 +1,6 @@
 /**
  *  YoLink™ Outlet Power Monitor Device (Local API Edition)
- *  © 2026 Albert Mulder
+ *  © 2026 John Eubanks
  *
  *  1.0.0 - Initial driver for power-monitoring plugs/outlets (YS6614, YS6602)
  */

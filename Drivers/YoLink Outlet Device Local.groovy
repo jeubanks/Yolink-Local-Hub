@@ -1,6 +1,6 @@
 /**
  *  YoLink™ Outlet Device (Local API Edition)
- *  © 2026 Albert Mulder
+ *  © 2026 John Eubanks
  *
  *  1.0.0 - Initial working driver (YS6604 support)
  */

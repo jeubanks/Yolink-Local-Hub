@@ -1,6 +1,6 @@
 /**
  *  YoLink™ Switch Device (Local API Edition)
- *  © 2026 Albert Mulder
+ *  © 2026 John Eubanks
  *
  *  1.0.0 - Initial working driver (Switch alias for Outlet-class devices)
  */
