@@ -702,14 +702,18 @@ def passMQTT(topic) {
     }
 
     // Selected in the app but child missing — warn, but rate-limit so we don’t spam.
-    state.unknownWarned = (state.unknownWarned ?: [:])
-    long lastWarn = (state.unknownWarned[devId] ?: 0L) as long
-    if (now() - lastWarn > 60000) {  // 1 minute throttle
+    // Prune expired entries before writing to keep the map from growing unbounded.
+    long nowMs = now()
+    Map warned = (state.unknownWarned ?: [:]) as Map
+    warned = warned.findAll { k, v -> (nowMs - ((v ?: 0L) as long)) < 60000 }
+    long lastWarn = (warned[devId] ?: 0L) as long
+    if (nowMs - lastWarn > 60000) {  // 1 minute throttle
         log.warn "MQTT received for selected device ${devId}, but child device not found. Did it get deleted? Recreate from the app."
-        state.unknownWarned[devId] = now()
+        warned[devId] = nowMs
     } else {
         logDebug("Suppressed repeat warning for missing selected device ${devId}")
     }
+    state.unknownWarned = warned
     return null
 }
 
