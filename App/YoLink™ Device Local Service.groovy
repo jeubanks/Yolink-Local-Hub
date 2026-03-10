@@ -448,6 +448,7 @@ private create_yolink_device(Hubitat_dni, devname, devtype, devtoken, devId) {
     if (devtype == "LeakSensor") drivername = "LeakSensor"
     if (devtype == "LeakSensor3") drivername = "LeakSensor3"
     if (devtype == "Lock") drivername = "Lock"
+    if (devtype == "LockV2") drivername = "Lock"
     if (devtype == "Manipulator") drivername = "Manipulator"
     if (devtype == "MotionSensor") drivername = "MotionSensor"
     if (devtype == "MultiOutlet") drivername = "MultiOutlet"

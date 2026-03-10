@@ -24,6 +24,7 @@ This is an **App + drivers** that let Hubitat talk **directly** to the **YoLink 
 - Leak Sensor / Leak Sensor 3
 - Door Sensor
 - Power Failure Alarm (PFA)
+- Lock / LockV2
 - Outlet / Power Plug (YS6604)
 - Power-monitoring Plugs/Outlets (YS6614, YS6602) with power/energy telemetry
 - Switch-class plugs/devices (reported as `Switch`)
@@ -74,7 +75,7 @@ This is an **App + drivers** that let Hubitat talk **directly** to the **YoLink 
 
 ### 1) Install code in Hubitat
 - **Apps Code** → add the parent app from this folder → Save.
-- **Drivers Code** → add drivers you need (THSensor, Leak Sensor, Door Sensor, PFA, MQTT Listener) → Save.
+- **Drivers Code** → add drivers you need (THSensor, Leak Sensor, Door Sensor, Lock, PFA, MQTT Listener) → Save.
 
 ### 2) Add the App
 - Apps → **Add User App** → **YoLink™ Device Local Service**

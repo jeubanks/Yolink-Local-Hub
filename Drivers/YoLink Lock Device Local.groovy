@@ -1,14 +1,14 @@
 /**
- *  YoLink™ Outlet Power Monitor Device (Local API Edition)
+ *  YoLink™ Lock Device (Local API Edition)
  *  © 2026 Albert Mulder
  *
- *  1.0.0 - Initial driver for power-monitoring plugs/outlets (YS6614, YS6602)
+ *  1.0.0 - Initial Lock/LockV2 local driver
  */
 import groovy.json.JsonSlurper
 
 def clientVersion() { "1.0.0" }
 def copyright()     { "© 2026 John Eubanks" }
-def driverName()    { "YoLink™ Outlet Power Monitor Device (Local API Edition)" }
+def driverName()    { "YoLink™ Lock Device (Local API Edition)" }
 
 preferences {
     input name: "info",
@@ -22,37 +22,37 @@ preferences {
 }
 
 metadata {
-    definition (name: "YoLink Outlet Power Monitor Device Local",
+    definition (name: "YoLink Lock Device Local",
                 namespace: "almulder", author: "Albert Mulder", singleThreaded: true) {
         capability "Polling"
         capability "Refresh"
-        capability "Switch"
-        capability "Outlet"
-        capability "PowerMeter"
-        capability "EnergyMeter"
-        capability "VoltageMeasurement"
-        capability "CurrentMeter"
+        capability "Lock"
+        capability "Battery"
+        capability "SignalStrength"
 
         command "reset"
-        command "setDelay", [[name: "Delay ON (minutes)", type: "NUMBER"], [name: "Delay OFF (minutes)", type: "NUMBER"]]
+        command "fetchState"
+        command "setAutoLock", [[name: "Auto Lock Seconds", type: "NUMBER"]]
+        command "setSoundLevel", [[name: "Sound Level (0-3)", type: "NUMBER"]]
+        command "setHanding", [[name: "Handing (left|right)", type: "STRING"]]
+        command "setSetButtonEnabled", [[name: "Enable Set Button (true|false)", type: "BOOL"]]
 
         attribute "online", "String"
         attribute "devId", "String"
         attribute "firmware", "String"
+        attribute "hwVersion", "String"
         attribute "lastPoll", "String"
         attribute "lastResponse", "String"
         attribute "reportAt", "String"
         attribute "stateChangedAt", "String"
 
         attribute "state", "String"
-        attribute "delayOn", "Number"
-        attribute "delayOff", "Number"
+        attribute "batteryRaw", "Number"
         attribute "tz", "Number"
-
-        attribute "voltage", "Number"
-        attribute "current", "Number"
-        attribute "amperage", "Number"
-        attribute "frequency", "Number"
+        attribute "autoLock", "Number"
+        attribute "enableSetButton", "String"
+        attribute "rlSet", "String"
+        attribute "soundLevel", "Number"
 
         attribute "loraDevNetType", "String"
         attribute "signal", "String"
@@ -104,7 +104,7 @@ private boolean ensureSetupContext() {
     return isSetup()
 }
 
-private List<String> relayTypeCandidates() {
+private List<String> lockTypeCandidates() {
     LinkedHashSet<String> candidates = new LinkedHashSet<String>()
     if (state?.type) candidates << state.type.toString()
     if (state?.devId) {
@@ -113,64 +113,50 @@ private List<String> relayTypeCandidates() {
             if (parentType) candidates << parentType
         } catch (ignored) {}
     }
-    candidates << "Outlet"
-    candidates << "Switch"
-    candidates << "MultiOutlet"
+    candidates << "LockV2"
+    candidates << "Lock"
     return candidates as List<String>
 }
 
-private Map sendRelayCommand(String suffix, Map params=[:]) {
-    if (!ensureSetupContext()) return null
+private Map sendLockRequest(String method, Map params=null, String requestType="Lock") {
+    try {
+        Map req = [
+            method      : method,
+            targetDevice: state.devId,
+            token       : state.token
+        ]
+        if (params != null) req.params = params
 
-    Map methodErr = null
-    for (String relayType : relayTypeCandidates()) {
-        try {
-            String method = "${relayType}.${suffix}"
-            def request = [
-                method      : method,
-                targetDevice: state.devId,
-                token       : state.token,
-                params      : params
-            ]
-            def object = parent.pollAPI(request, state.name ?: "Outlet", relayType)
-            if (object?.code == "000000") {
-                if (state.type != relayType) state.type = relayType
+        def object = parent.pollAPI(req, state.name ?: "Lock", requestType)
+        if (object) {
+            if (successful(object)) {
                 rememberState("online", "true")
                 lastResponse("Success")
-                return object
-            }
-            if (object?.code == "010203") {
-                methodErr = object
-                continue
-            }
-            if (object) {
+            } else {
                 pollError(object)
-                return object
             }
-        } catch (Exception e) {
-            log.error "sendRelayCommand(${suffix}) exception: $e"
+        } else {
+            lastResponse("No response from Local API")
         }
+        return object
+    } catch (Exception e) {
+        lastResponse("Exception $e")
+        log.error "sendLockRequest(${method}) exception: $e"
+        return null
     }
-
-    if (methodErr) pollError(methodErr)
-    else lastResponse("No response from Local API")
-    return methodErr
 }
 
-private Map getStateWithFallback() {
+private Map getStateWithFallback(boolean fetchFirst = false) {
     if (!ensureSetupContext()) return null
 
+    List<String> methods = fetchFirst ? ["fetchState", "getState"] : ["getState", "fetchState"]
     Map methodErr = null
-    for (String relayType : relayTypeCandidates()) {
-        try {
-            def request = [
-                method      : "${relayType}.getState",
-                targetDevice: state.devId,
-                token       : state.token
-            ]
-            def object = parent.pollAPI(request, state.name ?: "Outlet", relayType)
+
+    for (String lockType : lockTypeCandidates()) {
+        for (String op : methods) {
+            def object = sendLockRequest("${lockType}.${op}", null, lockType)
             if (object?.code == "000000") {
-                if (state.type != relayType) state.type = relayType
+                if (state.type != lockType) state.type = lockType
                 return object
             }
             if (object?.code == "010203") {
@@ -178,8 +164,6 @@ private Map getStateWithFallback() {
                 continue
             }
             if (object) return object
-        } catch (Exception e) {
-            log.error "getStateWithFallback() exception: $e"
         }
     }
     return methodErr
@@ -223,38 +207,14 @@ def pollDevice(delay=1) {
     sendEvent(name: "lastPoll", value: fmtTs(now()))
 }
 
-def on()  { setSwitchState("open") }
-def off() { setSwitchState("close") }
-
-def setDelay(delayOn=null, delayOff=null) {
-    if (!ensureSetupContext()) return
-    Integer onMins  = (delayOn  == null) ? null : (delayOn  as Integer)
-    Integer offMins = (delayOff == null) ? null : (delayOff as Integer)
-    if (onMins == null && offMins == null) return
-
-    def params = [:]
-    if (onMins  != null) params.delayOn  = Math.max(0, onMins)
-    if (offMins != null) params.delayOff = Math.max(0, offMins)
-
-    sendRelayCommand("setDelay", params)
-}
-
-private void setSwitchState(String cmdState) {
-    if (!ensureSetupContext()) return
-    def object = sendRelayCommand("setState", [state: cmdState])
-    if (object && successful(object)) {
-        parseDevice([data: object?.data ?: [:]])
-    }
-}
-
 def getDevicestate() {
     if (!ensureSetupContext()) {
         logDebug("getDevicestate skipped: missing devId/type/token")
         return
     }
-    logDebug("OutletPower getDevicestate()")
+    logDebug("Lock getDevicestate()")
     try {
-        def object = getStateWithFallback()
+        def object = getStateWithFallback(false)
         if (object) {
             if (successful(object)) {
                 parseDevice(object)
@@ -272,67 +232,130 @@ def getDevicestate() {
     }
 }
 
+def fetchState() {
+    if (!ensureSetupContext()) return
+    def object = getStateWithFallback(true)
+    if (object && successful(object)) parseDevice(object)
+}
+
+def lock()   { setLockState("locked") }
+def unlock() { setLockState("unlocked") }
+
+private void setLockState(String targetState) {
+    if (!ensureSetupContext()) return
+
+    Map methodErr = null
+    for (String lockType : lockTypeCandidates()) {
+        String method = "${lockType}.setState"
+        Map params = (lockType == "LockV2") ? [state: [lock: targetState]] : [state: targetState]
+        def object = sendLockRequest(method, params, lockType)
+        if (object?.code == "000000") {
+            if (state.type != lockType) state.type = lockType
+            parseDevice([data: object?.data ?: [:]])
+            return
+        }
+        if (object?.code == "010203") {
+            methodErr = object
+            continue
+        }
+        if (object) return
+    }
+    if (methodErr) pollError(methodErr)
+}
+
+def setAutoLock(seconds) {
+    Integer sec = asInt(seconds)
+    if (sec == null) return
+    setLockAttributes([autoLock: Math.max(0, sec)])
+}
+
+def setSoundLevel(level) {
+    Integer lvl = asInt(level)
+    if (lvl == null) return
+    setLockAttributes([soundLevel: Math.max(0, Math.min(3, lvl))])
+}
+
+def setHanding(handing) {
+    String v = (handing ?: "").toString().toLowerCase()
+    if (!(v in ["left", "right"])) return
+    setLockAttributes([rlSet: v])
+}
+
+def setSetButtonEnabled(enabled) {
+    if (enabled == null) return
+    setLockAttributes([enableSetButton: (enabled == true || enabled.toString().equalsIgnoreCase("true"))])
+}
+
+private void setLockAttributes(Map attrs) {
+    if (!ensureSetupContext() || !attrs) return
+
+    for (String lockType : lockTypeCandidates()) {
+        if (lockType != "LockV2") continue
+        def object = sendLockRequest("LockV2.setAttributes", attrs, lockType)
+        if (object && successful(object)) {
+            parseDevice([data: object?.data ?: [:]])
+            return
+        }
+        if (object && object?.code != "010203") return
+    }
+}
+
 private void parseDevice(object) {
     def data = object?.data ?: [:]
-    def st   = (data?.state instanceof Map) ? (Map) data.state : data
-    def lora = (data?.loraInfo instanceof Map) ? (Map) data.loraInfo : [:]
+    Map st = [:]
+    if (data?.state instanceof Map) st = (Map) data.state
 
-    String rawState = st?.state
-    String fw       = st?.version
-    Integer tz      = asInt(st?.tz)
+    Map attrs = [:]
+    if (data?.attributes instanceof Map) attrs = (Map) data.attributes
+    else if (st?.attributes instanceof Map) attrs = (Map) st.attributes
 
-    Integer dOn     = asInt(st?.delay?.on)
-    Integer dOff    = asInt(st?.delay?.off)
+    Map lora = (data?.loraInfo instanceof Map) ? (Map) data.loraInfo : [:]
 
-    String swState = normalizeSwitch(rawState)
+    String rawLock = [st?.lock, st?.state, data?.lock].find { it != null }?.toString()
+    String lockState = normalizeLock(rawLock)
 
-    rememberState("state", rawState)
-    rememberState("switch", swState)
-    if (dOn  != null) rememberState("delayOn", dOn)
-    if (dOff != null) rememberState("delayOff", dOff)
-    if (tz   != null) rememberState("tz", tz)
-    if (fw) rememberState("firmware", fw?.toUpperCase())
+    Integer battery4 = asInt([data?.battery, st?.battery].find { it != null })
+    Integer batteryPct = (battery4 != null) ? (parent?.batterylevel(battery4 as String) as Integer) : null
 
-    BigDecimal powerW  = extractDecimal(st, ["power", "watt", "watts", "loadPower"])
-    BigDecimal energyK = extractDecimal(st, ["energy", "kwh", "energyKWh", "totalKWh", "energyTotal"])
-    BigDecimal voltage = extractDecimal(st, ["voltage", "volt", "volts", "lineVoltage"])
-    BigDecimal current = extractDecimal(st, ["current", "amp", "amps", "lineCurrent"])
-    BigDecimal frequency = extractDecimal(st, ["frequency", "freq", "hz", "lineFrequency"])
+    String fw = [data?.version, st?.version].find { it != null }?.toString()
+    String hw = [data?.hwVersion, st?.hwVersion].find { it != null }?.toString()
+    Integer tz = asInt([data?.tz, st?.tz].find { it != null })
 
-    if (powerW != null) {
-        sendEvent(name: "power", value: powerW.setScale(2, BigDecimal.ROUND_HALF_UP), unit: "W")
-    }
-    if (energyK != null) {
-        sendEvent(name: "energy", value: energyK.setScale(4, BigDecimal.ROUND_HALF_UP), unit: "kWh")
-    }
-    if (voltage != null) {
-        sendEvent(name: "voltage", value: voltage.setScale(2, BigDecimal.ROUND_HALF_UP), unit: "V")
-    }
-    if (current != null) {
-        sendEvent(name: "current", value: current.setScale(3, BigDecimal.ROUND_HALF_UP), unit: "A")
-        sendEvent(name: "amperage", value: current.setScale(3, BigDecimal.ROUND_HALF_UP), unit: "A")
-    }
-    if (frequency != null) {
-        sendEvent(name: "frequency", value: frequency.setScale(2, BigDecimal.ROUND_HALF_UP), unit: "Hz")
-    }
+    Integer autoLock = asInt(attrs?.autoLock)
+    Integer soundLevel = asInt(attrs?.soundLevel)
+    def enableSetBtn = attrs?.enableSetButton
+    String rlSet = attrs?.rlSet?.toString()
 
-    def reportAt  = data?.reportAt
-    def changedAt = st?.stateChangedAt ?: data?.stateChangedAt
-    if (reportAt)  rememberState("reportAt", fmtTs(reportAt))
+    def reportAt = data?.reportAt
+    def changedAt = data?.stateChangedAt ?: st?.stateChangedAt
+
+    rememberState("state", rawLock)
+    rememberState("lock", lockState)
+    if (battery4 != null) rememberState("batteryRaw", battery4)
+    if (batteryPct != null) rememberBatteryState(batteryPct as int)
+    if (fw) rememberState("firmware", fw.toUpperCase())
+    if (hw) rememberState("hwVersion", hw.toUpperCase())
+    if (tz != null) rememberState("tz", tz)
+
+    if (autoLock != null) rememberState("autoLock", autoLock)
+    if (soundLevel != null) rememberState("soundLevel", soundLevel)
+    if (enableSetBtn != null) rememberState("enableSetButton", enableSetBtn.toString())
+    if (rlSet) rememberState("rlSet", rlSet)
+
+    if (reportAt) rememberState("reportAt", fmtTs(reportAt))
     if (changedAt) rememberState("stateChangedAt", fmtTs(changedAt))
 
-    String devNetType = lora?.devNetType
-    def signal        = lora?.signal
-    String gatewayId  = lora?.gatewayId
-    def gateways      = lora?.gateways
-    Integer gwCount   = asInt(gateways)
+    String devNetType = lora?.devNetType?.toString()
+    Integer gateways = asInt(lora?.gateways)
+    String gatewayId = lora?.gatewayId?.toString()
+    def signal = lora?.signal
 
     if (devNetType) rememberState("loraDevNetType", devNetType)
     if (signal != null) sendEvent(name: "signal", value: "${signal} dBm")
-    if (gwCount != null) rememberState("gateways", gwCount)
-    if (gatewayId != null) rememberState("gatewayId", gatewayId)
+    if (gateways != null) rememberState("gateways", gateways)
+    if (gatewayId) rememberState("gatewayId", gatewayId)
 
-    logDebug("Parsed: state=${rawState}, switch=${swState}, power=${powerW}, energy=${energyK}, voltage=${voltage}, current=${current}")
+    logDebug("Parsed: lock=${lockState}, batteryRaw=${battery4}, batteryPct=${batteryPct}, autoLock=${autoLock}, signal=${signal}")
 }
 
 def parse(topic) { processStateData(topic?.payload) }
@@ -343,11 +366,11 @@ def processStateData(String payload) {
             lastResponse("MQTT Empty Payload")
             return
         }
+
         def root = new JsonSlurper().parseText(payload)
-        if (!state?.devId && root?.deviceId) {
-            rememberState("devId", root.deviceId)
-        }
+        if (!state?.devId && root?.deviceId) rememberState("devId", root.deviceId)
         if (state?.devId && root?.deviceId && state.devId != root.deviceId) return
+
         rememberState("online", "true")
 
         def dataRaw = root?.data
@@ -356,14 +379,14 @@ def processStateData(String payload) {
         parseDevice([data: data])
         lastResponse("MQTT Success")
     } catch (e) {
-        log.warn "OutletPower processStateData error: ${e}"
+        log.warn "Lock processStateData error: ${e}"
         lastResponse("MQTT Exception")
     }
 }
 
 def reset() {
     state.driverVersion = clientVersion()
-    rememberState("switch", "off")
+    rememberState("lock", "unknown")
     lastResponse("Reset completed")
     poll(true)
 }
@@ -378,16 +401,18 @@ def rememberState(name, value, unit=null) {
     }
 }
 
-private String normalizeSwitch(String stateValue) {
-    switch ((stateValue ?: "").toLowerCase()) {
-        case "open":
-            return "on"
-        case "closed":
-        case "close":
-            return "off"
-        default:
-            return stateValue ?: "off"
+def rememberBatteryState(def value) {
+    if (state.battery != value) {
+        state.battery = value
+        sendEvent(name: "battery", value: value?.toString(), unit: "%")
     }
+}
+
+private String normalizeLock(String v) {
+    String s = (v ?: "").toString().toLowerCase()
+    if (s in ["locked", "lock"]) return "locked"
+    if (s in ["unlocked", "unlock"]) return "unlocked"
+    return "unknown"
 }
 
 private Integer asInt(def value) {
@@ -395,34 +420,11 @@ private Integer asInt(def value) {
     try { return (value as Integer) } catch (ignored) { return null }
 }
 
-private BigDecimal asDecimal(def value) {
-    if (value == null) return null
-    try {
-        if (value instanceof BigDecimal) return value
-        if (value instanceof Number) return new BigDecimal(value.toString())
-        String s = value.toString().trim()
-        if (!s) return null
-        return new BigDecimal(s)
-    } catch (ignored) {
-        return null
-    }
-}
-
-private BigDecimal extractDecimal(Map source, List<String> keys) {
-    if (!(source instanceof Map) || !keys) return null
-    for (String k : keys) {
-        if (source.containsKey(k)) {
-            BigDecimal v = asDecimal(source[k])
-            if (v != null) return v
-        }
-    }
-    return null
-}
-
 private String activeFmt() {
     try { return parent?.getDateTimeFormat() ?: "MM/dd/yyyy hh:mm:ss a" }
     catch (ignored) { return "MM/dd/yyyy hh:mm:ss a" }
 }
+
 private String fmtTs(def ts) {
     String f = activeFmt()
     try {

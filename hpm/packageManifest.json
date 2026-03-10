@@ -1,12 +1,12 @@
 {
   "packageName": "YoLink Local Hub ↔ Hubitat (Local-only)",
   "author": "Almulder",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "minimumHEVersion": "2.4.0",
   "dateReleased": "2026-03-09",
   "documentationLink": "https://github.com/almulder/Yolink-Local-Hub",
   "communityLink": "https://community.hubitat.com/t/yolink-local-hub-hubitat-local-only-app-drivers-beta/156494",
-  "releaseNotes": "Add dedicated power-monitor relay driver and auto-map YS6614/YS6602 to report power/energy metrics.",
+  "releaseNotes": "Add YoLink lock local driver (Lock/LockV2) with Hubitat lock/battery/status support and lock attribute controls.",
   "tags": [
     "Integration",
     "YoLink",
@@ -71,6 +71,13 @@
       "name": "YoLink Outlet Power Monitor Device Local",
       "namespace": "Almulder",
       "location": "https://raw.githubusercontent.com/almulder/Yolink-Local-Hub/refs/heads/main/Drivers/YoLink%20Outlet%20Power%20Monitor%20Device%20Local.groovy",
+      "required": false
+    },
+    {
+      "id": "3d11b8f8-6f86-4ef5-9bdb-5dfd9ed71df7",
+      "name": "YoLink Lock Device Local",
+      "namespace": "Almulder",
+      "location": "https://raw.githubusercontent.com/almulder/Yolink-Local-Hub/refs/heads/main/Drivers/YoLink%20Lock%20Device%20Local.groovy",
       "required": false
     },
     {

@@ -7,7 +7,7 @@
 import groovy.json.JsonSlurper
 
 def clientVersion() { "1.0.0" }
-def copyright()     { "© 2026 Albert Mulder" }
+def copyright()     { "© 2026 John Eubanks" }
 def driverName()    { "YoLink™ Switch Device (Local API Edition)" }
 
 /* ============================ Preferences ============================ */
