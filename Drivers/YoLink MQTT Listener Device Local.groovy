@@ -254,19 +254,24 @@ def parse(message) {
         if (devId) parsed.deviceId = devId
 
         if (devId && json.data instanceof Map) {
-            if (!state["lastData_${devId}"]) {
-                state["lastData_${devId}"] = [:]
-            }
-            def lastData = state["lastData_${devId}"]
+            long nowMs = now()
+            boolean isNew = !state.containsKey("lastData_${devId}")
+            Map entry  = (state["lastData_${devId}"] instanceof Map) ? (Map) state["lastData_${devId}"] : [ts: nowMs, data: [:]]
+            Map cached = (entry.data instanceof Map) ? (Map) entry.data : [:]
 
-            // Cache all fields, merge new data accordingly
-            json.data.each { key, value ->
-                if (value != null) lastData[key] = value
+            // Merge new values into cache; restore missing keys into current message
+            json.data.each { key, value -> if (value != null) cached[key] = value }
+            cached.each { key, value -> if (!json.data.containsKey(key)) json.data[key] = value }
+            state["lastData_${devId}"] = [ts: nowMs, data: cached]
+
+            // Prune entries not seen in 24h — only when a new device first appears (amortized cost)
+            if (isNew) {
+                state.findAll { k, v ->
+                    k.toString().startsWith("lastData_") &&
+                    (nowMs - (((v instanceof Map) ? (v?.ts ?: 0L) : 0L) as long)) > 86400000L
+                }.keySet().each { k -> state.remove(k) }
             }
-            // Restore missing keys
-            lastData.each { key, value ->
-                if (!json.data.containsKey(key)) json.data[key] = value
-            }
+
             // Re-encode enriched JSON payload
             parsed.payload = groovy.json.JsonOutput.toJson(json)
         }
